@@ -1,0 +1,18 @@
+### Java template
+*.class
+out
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+#for IDE
+.idea
+*.iml
+
+
+
