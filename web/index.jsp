@@ -3,10 +3,10 @@
   @author fanggang
   @time: 2015-11-24 19:11:24
 --%>
-<%@page contentType="text/html;charset=UTF-8" language="java" %>
+<%@page contentType="text/html;charset=UTF-8" language="java"%>
 <%@page import="java.util.*"%>
 <%@page import="java.sql.*"%>
-<%@ page import="java.text.NumberFormat" %>
+<%@page import="java.text.NumberFormat"%>
 <%
     class Table{
         public String tableName;        //表名
@@ -29,20 +29,24 @@
     String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path;
     String baseUrl = basePath + request.getContextPath() + request.getServletPath();
 
-    String title = "数据字典";
+    Boolean isSetSession = false;
+    Boolean isSetCookie = false;
+    Boolean isSetGet = false;
+    Boolean connectWrong = true;
 
+    // 获取cookie,检测cookie中是否存在配置,且没有记录连接错误的信息
     Cookie[] cookies = request.getCookies();
     if (cookies != null && cookies.length > 0) {
         for (Cookie cookie : cookies) {
-            ;
+            if(cookie.getName() != null){
+                ;
+            }
         }
+    }else{
+        isSetCookie = false;
     }
 
-    String[] stringArray;
-
-    boolean connectWrong = true;
-
-    Map<String, String> configMap = new HashMap<>();
+    Map<String, String> configMap = new HashMap<String, String>();
     configMap.put("server",     "localhost");
     configMap.put("port",       "3307");
     configMap.put("dataBase",   "tmc");
@@ -50,20 +54,41 @@
     configMap.put("password",   "123456");
     Map<String, String> tmpConfig = configMap;
 
-    Map<String, List<Table>> tableMap = new HashMap<>();
+    Map<String, List<Table>> tableMap = new HashMap<String, List<Table>>();
+    Map<String, List<Table>> tableSortedMap = new HashMap<String, List<Table>>();
 
+    String title = "数据字典";
     // 1.原生java request对象获取url中的参数
     String queryString = request.getQueryString();
 
-    if("config".equals(queryString)){
-        response.sendRedirect(baseUrl + "?config");
-        return ;
-    }
-    // 2.原生java 接受ajax提交的信息
-    if(!"postConfig".equals(queryString)){
+    // 从cookie中取配置
+    if(!"config".equals(queryString) && !"postConfig".equals(queryString) && !"mysqlConnectError".equals(queryString) && !"deleteSuccess".equals(queryString)){
+        //1，检测session或cookie中是否存有数据库配置
+        //1.1 若无，跳转到?config地址，让用户输入数据库配置
+        if(!isSetGet && !isSetSession && !isSetCookie || connectWrong){
+            response.sendRedirect(baseUrl + "?config");
+            return;
+        }else{
+            //1.2 若有，则根据配置查看数据字典页
+            if(isSetCookie){
+                ;
+            }else{
 
-        String password = request.getParameter("password");
-        String server = request.getParameter("server");
+            }
+            // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入session或cookie
+            if(isSetGet){
+                ;
+            }
+        }
+    }
+    // 2.原生java 接受ajax提交的信息,按提交配置尝试连接
+    if("postConfig".equals(queryString)){
+
+        String user     = request.getParameter("dbUser");
+        String password = request.getParameter("dbPassword");
+        String server   = request.getParameter("dbServer");
+        String host     = request.getParameter("dbHost");
+        String port     = request.getParameter("dbPort");
         try {
             // 3.原生java 连接数据库并执行sql查询
             Class.forName("com.mysql.jdbc.Driver");//.newInstance();
@@ -75,6 +100,7 @@
                 out.print(conn.getWarnings());
                 return;
             }else{
+                // 3.原生java 保存信息到cookie或session中
                 request.setAttribute("_db_config", configMap);
                 request.setAttribute("_db_connect_errno", null);
                 request.setAttribute("_db_connect_error", null);
@@ -110,20 +136,63 @@
                 if(tableMap.get(tableName) != null && tableMap.get(tableName).size() > 0){
                     tableMap.get(tableName).add(table);
                 }else{
-                    List<Table> tableGroupList = new ArrayList<>();
+                    List<Table> tableGroupList = new ArrayList<Table>();
                     tableGroupList.add(table);
                     tableMap.put(tableName, tableGroupList);
                 }
             }
+
+            sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
+                + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
+                + " FROM INFORMATION_SCHEMA.TABLES AS T"
+                + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
+                + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dataBase") + "' ORDER BY T.TABLE_NAME, COLUMN_NAME";
+            result = stmt.executeQuery(sql);
+            while(result.next()){
+                String tableName = result.getString("TABLE_NAME");
+                Table table = new Table();
+                table.tableName         = tableName;
+                table.tableComment      = result.getString("TABLE_COMMENT");
+                table.columnName        = result.getString("COLUMN_NAME");
+                table.columnType        = result.getString("COLUMN_TYPE");
+                table.columnComment     = result.getString("COLUMN_COMMENT");
+                table.isNullable        = result.getString("IS_NULLABLE");
+                table.columnKey         = result.getString("COLUMN_KEY");
+                table.extra             = result.getString("EXTRA");
+                table.columnDefault     = result.getString("COLUMN_DEFAULT");
+                table.characterSetName  = result.getString("CHARACTER_SET_NAME");
+                table.tableCollation    = result.getString("TABLE_COLLATION");
+                table.collationName     = result.getString("COLLATION_NAME");
+                table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
+                table.autoIncrement     = result.getLong("AUTO_INCREMENT");
+                table.createTime        = result.getString("CREATE_TIME");
+                if(tableSortedMap.get(tableName) != null && tableSortedMap.get(tableName).size() > 0){
+                    tableSortedMap.get(tableName).add(table);
+                }else{
+                    List<Table> tableGroupList = new ArrayList<Table>();
+                    tableGroupList.add(table);
+                    tableSortedMap.put(tableName, tableGroupList);
+                }
+            }
+
             if(result != null)result.close();
             if(stmt != null)stmt.close();
             if(conn != null)conn.close();
-            //out.print(JSON.toJSON(tableMap));
         } catch (Exception e) {
             e.printStackTrace();
+            out.print(e.getMessage());
         }
     }
-    // 3.原生java 保存信息到cookie或session中
+
+    if("config".equals(queryString)){
+        title = "填写数据库配置";
+    }
+    if("mysqlConnectError".equals(queryString)){
+        title = "数据库连接错误，请重新检查数据库信息后填写数据库配置！";
+    }
+    if("deleteSuccess".equals(queryString)){
+        title = "已经成功删除保存的配置信息！";
+    }
 
 %>
 <!DOCTYPE html>
@@ -269,7 +338,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_database">数据库名</label>
-                        <input type="text" name="db_database" id="db_database" value="<% out.print(tmpConfig.get("dbDatabase")!=null?tmpConfig.get("dbDatabase"):"heanes.com"); %>" class="normal-input" title="请输入数据库名" placeholder="请输入数据库名" required />
+                        <input type="text" name="dbDatabase" id="db_database" value="<% out.print(tmpConfig.get("dbDatabase")!=null?tmpConfig.get("dbDatabase"):"heanes.com"); %>" class="normal-input" title="请输入数据库名" placeholder="请输入数据库名" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">将连接哪个数据库？</span>
@@ -281,7 +350,7 @@
                         <!-- 解决浏览器自动填充数据的问题 -->
                         <label for="fake_db_user" style="display:none"></label>
                         <input type="text" name="fake_username_remembered" id="fake_db_user" style="display:none" />
-                        <input type="text" name="db_user" id="db_user" value="<% out.print(tmpConfig.get("dbUser")!=null?tmpConfig.get("dbUser"):"webdb");%>" class="normal-input" title="请输入用户名" placeholder="请输入用户名" required />
+                        <input type="text" name="dbUser" id="db_user" value="<% out.print(tmpConfig.get("dbUser")!=null?tmpConfig.get("dbUser"):"webdb");%>" class="normal-input" title="请输入用户名" placeholder="请输入用户名" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">你的MySQL用户名</span>
@@ -293,7 +362,7 @@
                         <!-- 解决浏览器自动填充数据的问题 -->
                         <label for="fake_db_password" style="display:none"></label>
                         <input type="password" name="fake_password_remembered" id="fake_db_password" style="display:none" />
-                        <input type="password" name="db_password" id="db_password" autocomplete="off" value="<% out.print(tmpConfig.get("dbPassword")!=null?tmpConfig.get("dbPassword"):"p()P]aHqCEfwVY@7");%>" class="normal-input" title="请输入密码" placeholder="请输入密码" required />
+                        <input type="password" name="dbPassword" id="db_password" autocomplete="off" value="<% out.print(tmpConfig.get("dbPassword")!=null?tmpConfig.get("dbPassword"):"p()P]aHqCEfwVY@7");%>" class="normal-input" title="请输入密码" placeholder="请输入密码" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">数据库密码</span>
@@ -302,7 +371,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_server">数据库主机</label>
-                        <input type="text" name="db_server" id="db_server" value="<% out.print(tmpConfig.get("dbServer")!=null?tmpConfig.get("dbServer"):"localhost");%>" class="normal-input" title="请输入数据库主机" placeholder="localhost" required />
+                        <input type="text" name="dbServer" id="db_server" value="<% out.print(tmpConfig.get("dbServer")!=null?tmpConfig.get("dbServer"):"localhost");%>" class="normal-input" title="请输入数据库主机" placeholder="localhost" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">连接地址，如localhost、IP地址</span>
@@ -311,7 +380,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_port">端口</label>
-                        <input type="text" name="db_port" id="db_port" value="<% out.print(tmpConfig.get("dbPort")!=null?tmpConfig.get("dbPort"):"3306");%>" class="normal-input" title="请输入端口" placeholder="请输入端口" required />
+                        <input type="text" name="dbPort" id="db_port" value="<% out.print(tmpConfig.get("dbPort")!=null?tmpConfig.get("dbPort"):"3306");%>" class="normal-input" title="请输入端口" placeholder="请输入端口" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">数据库连接什么端口？</span>
@@ -319,7 +388,7 @@
                 </div>
                 <div class="input-row">
                     <div class="input-field">
-                        <label for="remember_config" class="label-checkbox"><input type="checkbox" name="remember_config" checked id="remember_config" value="1" />记住配置（存入Cookie）</label>
+                        <label for="remember_config" class="label-checkbox"><input type="checkbox" name="rememberConfig" checked id="remember_config" value="1" />记住配置（存入Cookie）</label>
                     </div>
                 </div>
                 <div class="form-handle">
@@ -456,18 +525,18 @@
                                 </tr>
                                 </thead>
                                 <tbody>
-                                <%for(int k = 0, size = tableMap.get(tableName).size();k<size;k++){%>
+                                <%for(int k = 0, size = tableSortedMap.get(tableName).size();k<size;k++){%>
                                 <tr>
                                     <td class="column-index"><%=String.format("%0"+ (size+"").length() + "d", k+1)%></td>
-                                    <td class="column-field"><%=tableMap.get(tableName).get(k).columnName%></td>
-                                    <td class="column-data-type"><%=tableMap.get(tableName).get(k).columnType%></td>
-                                    <td class="column-comment"><%=tableMap.get(tableName).get(k).columnComment%></td>
-                                    <td class="column-can-be-null"><%=tableMap.get(tableName).get(k).isNullable%></td>
-                                    <td class="column-default-value"><%=tableMap.get(tableName).get(k).columnDefault%></td>
-                                    <td class="column-auto-increment"><%=("auto_increment".equals(tableMap.get(tableName).get(k).extra) ? "YES" : "")%></td>
-                                    <td class="column-primary-key"><%=("PRI".equals(tableMap.get(tableName).get(k).columnKey) ? "YES" : "")%></td>
-                                    <td class="column-character-set-name"><%=tableMap.get(tableName).get(k).characterSetName%></td>
-                                    <td class="column-collation-name"><%=tableMap.get(tableName).get(k).collationName%></td>
+                                    <td class="column-field"><%=tableSortedMap.get(tableName).get(k).columnName%></td>
+                                    <td class="column-data-type"><%=tableSortedMap.get(tableName).get(k).columnType%></td>
+                                    <td class="column-comment"><%=tableSortedMap.get(tableName).get(k).columnComment%></td>
+                                    <td class="column-can-be-null"><%=tableSortedMap.get(tableName).get(k).isNullable%></td>
+                                    <td class="column-default-value"><%=tableSortedMap.get(tableName).get(k).columnDefault%></td>
+                                    <td class="column-auto-increment"><%=("auto_increment".equals(tableSortedMap.get(tableName).get(k).extra) ? "YES" : "")%></td>
+                                    <td class="column-primary-key"><%=("PRI".equals(tableSortedMap.get(tableName).get(k).columnKey) ? "YES" : "")%></td>
+                                    <td class="column-character-set-name"><%=tableSortedMap.get(tableName).get(k).characterSetName%></td>
+                                    <td class="column-collation-name"><%=tableSortedMap.get(tableName).get(k).collationName%></td>
                                 </tr>
                                 <% }%>
                                 </tbody>
