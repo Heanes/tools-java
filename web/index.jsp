@@ -32,36 +32,71 @@
     Boolean isSetSession = false;
     Boolean isSetCookie = false;
     Boolean isSetGet = false;
-    Boolean connectWrong = true;
+    Boolean connectWrong = false;
 
     // 获取cookie,检测cookie中是否存在配置,且没有记录连接错误的信息
+    Map<String, String> cookieMap = new HashMap<>();
     Cookie[] cookies = request.getCookies();
     if (cookies != null && cookies.length > 0) {
         for (Cookie cookie : cookies) {
             if(cookie.getName() != null){
-                ;
+                if("_dbDatabase".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbUser".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbPassword".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbServer".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbPort".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbConnectWrong".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbConnectErrNo".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
+                if("_dbConnectErrOr".equals(cookie.getName())){
+                    cookieMap.put(cookie.getName(), cookie.getValue());
+                }
             }
         }
-    }else{
-        isSetCookie = false;
+        if(cookieMap.get("_dbPassword") !=null && cookieMap.get("_dbDatabase")!=null && cookieMap.get("_dbUser")!=null){
+            isSetCookie = true;
+        }
+        if(cookieMap.get("_dbConnectWrong") != null){
+            connectWrong = "true".equals(cookieMap.get("_dbConnectWrong"));
+        }
     }
 
+    String[] configs = {"_dbServer", "_dbPort", "_dbUser", "_dbPassword", "_dbDatabase", "_dbConnectWrong", "_dbConnectErrNo", "_dbConnectErrOr"};
+
+    // 获取Session
+    Map<String, String> sessionMap = new HashMap<>();
+    for (String cfg : configs) {
+        sessionMap.put(cfg, "" + session.getAttribute(cfg));
+    }
+    isSetSession = request.getAttribute("_dbPassword")!=null && request.getAttribute("_dbDatabase")!=null && request.getAttribute("_dbUser")!=null ;
+    connectWrong = "true".equals(sessionMap.get("_dbConnectWrong"));
+
     Map<String, String> configMap = new HashMap<String, String>();
-    configMap.put("server",     "localhost");
-    configMap.put("port",       "3307");
-    configMap.put("dataBase",   "tmc");
-    configMap.put("userName",   "root");
-    configMap.put("password",   "123456");
-    Map<String, String> tmpConfig = configMap;
+    configMap.put("dbServer",   "localhost");
+    configMap.put("dbPort",     "3307");
+    configMap.put("dbDataBase", "tmc");
+    configMap.put("dbUser",     "root");
+    configMap.put("dbPassword", "123456");
 
     Map<String, List<Table>> tableMap = new HashMap<String, List<Table>>();
     Map<String, List<Table>> tableSortedMap = new HashMap<String, List<Table>>();
 
     String title = "数据字典";
-    // 1.原生java request对象获取url中的参数
     String queryString = request.getQueryString();
 
-    // 从cookie中取配置
     if(!"config".equals(queryString) && !"postConfig".equals(queryString) && !"mysqlConnectError".equals(queryString) && !"deleteSuccess".equals(queryString)){
         //1，检测session或cookie中是否存有数据库配置
         //1.1 若无，跳转到?config地址，让用户输入数据库配置
@@ -69,119 +104,178 @@
             response.sendRedirect(baseUrl + "?config");
             return;
         }else{
-            //1.2 若有，则根据配置查看数据字典页
+            //1.2 若有Cookie
             if(isSetCookie){
-                ;
-            }else{
-
+                configMap.put("dbServer",     cookieMap.get("_dbServer"));
+                configMap.put("dbPort",       cookieMap.get("_dbPort"));
+                configMap.put("dbDatabase",   cookieMap.get("_dbDatabase"));
+                configMap.put("dbUser",       cookieMap.get("_dbUser"));
+                configMap.put("dbPassword",   cookieMap.get("_dbPassword"));
+            }
+            //1.3 若有Session，则根据配置查看数据字典页
+            if(isSetSession){
+                configMap.put("dbServer",     sessionMap.get("_dbServer"));
+                configMap.put("dbPort",       sessionMap.get("_dbPort"));
+                configMap.put("dbDatabase",   sessionMap.get("_dbDatabase"));
+                configMap.put("dbUser",       sessionMap.get("_dbUser"));
+                configMap.put("dbPassword",   sessionMap.get("_dbPassword"));
             }
             // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入session或cookie
             if(isSetGet){
                 ;
             }
+            try {
+                // 3.原生java 连接数据库并执行sql查询
+                Class.forName("com.mysql.jdbc.Driver");//.newInstance();
+                String mysqlConnectUrl = "jdbc:mysql://" + configMap.get("dbServer") + ":" +configMap.get("dbPort") + "/" + configMap.get("dbDatabase")
+                        + "?user=" + configMap.get("dbUser") + "&password=" + configMap.get("dbPassword") + "&useUnicode=true&characterEncoding=UTF8" ;
+                Connection conn= DriverManager.getConnection(mysqlConnectUrl);
+                if(conn.isClosed()){
+                    out.print("数据库连接不成功!");
+                    out.print(conn.getWarnings());
+                    response.sendRedirect(baseUrl + "?mysqlConnectError");
+                    return;
+                }else{
+                    // 3.原生java 保存信息到cookie或session中
+                    session.setAttribute("_dbConnectWrong", false);
+                    session.setAttribute("_dbConnectErrNo", null);
+                    session.setAttribute("_dbConnectErrOr", null);
+                    if("true".equals(cookieMap.get("_dbConnectWrong"))){
+                        Cookie[] cookieTemps = new Cookie[configs.length];
+                        for(int i = 0; i < configs.length; i++){
+                            cookieTemps[i] = new Cookie(configs[i], sessionMap.get(configs[i]));
+                            cookieTemps[i].setMaxAge(24*3600*365);
+                            response.addCookie(cookieTemps[i]);
+                        }
+                    }
+
+                    title += "-" + configMap.get("dbDataBase") + "@" + configMap.get("dbServer") + " on " + configMap.get("dbPort") + " - " + configMap.get("dbUser");
+                }
+                //out.print(request.getSession());
+                Statement stmt=conn.createStatement();
+                String sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
+                        + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
+                        + " FROM INFORMATION_SCHEMA.TABLES AS T"
+                        + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
+                        + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDataBase") + "' ORDER BY T.TABLE_NAME, ORDINAL_POSITION";
+                ResultSet result = stmt.executeQuery(sql);
+                while(result.next()){
+                    String tableName = result.getString("TABLE_NAME");
+                    Table table = new Table();
+                    table.tableName         = tableName;
+                    table.tableComment      = result.getString("TABLE_COMMENT");
+                    table.columnName        = result.getString("COLUMN_NAME");
+                    table.columnType        = result.getString("COLUMN_TYPE");
+                    table.columnComment     = result.getString("COLUMN_COMMENT");
+                    table.isNullable        = result.getString("IS_NULLABLE");
+                    table.columnKey         = result.getString("COLUMN_KEY");
+                    table.extra             = result.getString("EXTRA");
+                    table.columnDefault     = result.getString("COLUMN_DEFAULT");
+                    table.characterSetName  = result.getString("CHARACTER_SET_NAME");
+                    table.tableCollation    = result.getString("TABLE_COLLATION");
+                    table.collationName     = result.getString("COLLATION_NAME");
+                    table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
+                    table.autoIncrement     = result.getLong("AUTO_INCREMENT");
+                    table.createTime        = result.getString("CREATE_TIME");
+                    if(tableMap.get(tableName) != null && tableMap.get(tableName).size() > 0){
+                        tableMap.get(tableName).add(table);
+                    }else{
+                        List<Table> tableGroupList = new ArrayList<Table>();
+                        tableGroupList.add(table);
+                        tableMap.put(tableName, tableGroupList);
+                    }
+                }
+
+                sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
+                        + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
+                        + " FROM INFORMATION_SCHEMA.TABLES AS T"
+                        + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
+                        + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDataBase") + "' ORDER BY T.TABLE_NAME, COLUMN_NAME";
+                result = stmt.executeQuery(sql);
+                while(result.next()){
+                    String tableName = result.getString("TABLE_NAME");
+                    Table table = new Table();
+                    table.tableName         = tableName;
+                    table.tableComment      = result.getString("TABLE_COMMENT");
+                    table.columnName        = result.getString("COLUMN_NAME");
+                    table.columnType        = result.getString("COLUMN_TYPE");
+                    table.columnComment     = result.getString("COLUMN_COMMENT");
+                    table.isNullable        = result.getString("IS_NULLABLE");
+                    table.columnKey         = result.getString("COLUMN_KEY");
+                    table.extra             = result.getString("EXTRA");
+                    table.columnDefault     = result.getString("COLUMN_DEFAULT");
+                    table.characterSetName  = result.getString("CHARACTER_SET_NAME");
+                    table.tableCollation    = result.getString("TABLE_COLLATION");
+                    table.collationName     = result.getString("COLLATION_NAME");
+                    table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
+                    table.autoIncrement     = result.getLong("AUTO_INCREMENT");
+                    table.createTime        = result.getString("CREATE_TIME");
+                    if(tableSortedMap.get(tableName) != null && tableSortedMap.get(tableName).size() > 0){
+                        tableSortedMap.get(tableName).add(table);
+                    }else{
+                        List<Table> tableGroupList = new ArrayList<Table>();
+                        tableGroupList.add(table);
+                        tableSortedMap.put(tableName, tableGroupList);
+                    }
+                }
+
+                if(result != null)result.close();
+                if(stmt != null)stmt.close();
+                if(conn != null)conn.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                out.print(e.getMessage());
+
+                // session中保存连接错误信息
+                session.setAttribute("_dbConnectWrong", true);
+                session.setAttribute("_dbConnectErrNo", e.getMessage());
+                session.setAttribute("_dbConnectErrOr", e.getMessage());
+
+                // cookie中保存连接错误信息
+                Cookie cookieConnectWrong = new Cookie("_dbConnectWrong", "true");
+                cookieConnectWrong.setMaxAge(3600*24*365);
+                response.addCookie(cookieConnectWrong);
+                Cookie cookieConnectErrorOr = new Cookie("_dbConnectErrOr", e.getMessage());
+                cookieConnectErrorOr.setMaxAge(3600*24*365);
+                response.addCookie(cookieConnectErrorOr);
+                response.sendRedirect(baseUrl + "?mysqlConnectError");
+            }
         }
     }
     // 2.原生java 接受ajax提交的信息,按提交配置尝试连接
     if("postConfig".equals(queryString)){
-
-        String user     = request.getParameter("dbUser");
-        String password = request.getParameter("dbPassword");
-        String server   = request.getParameter("dbServer");
-        String host     = request.getParameter("dbHost");
-        String port     = request.getParameter("dbPort");
-        try {
-            // 3.原生java 连接数据库并执行sql查询
-            Class.forName("com.mysql.jdbc.Driver");//.newInstance();
-            String mysqlConnectUrl = "jdbc:mysql://" + configMap.get("server") + ":" +configMap.get("port") + "/" + configMap.get("dataBase")
-                                        + "?user=" + configMap.get("userName") + "&password=" + configMap.get("password") + "&useUnicode=true&characterEncoding=UTF8" ;
-            Connection conn= DriverManager.getConnection(mysqlConnectUrl);
-            if(conn.isClosed()){
-                out.print("数据库连接不成功!");
-                out.print(conn.getWarnings());
-                return;
-            }else{
-                // 3.原生java 保存信息到cookie或session中
-                request.setAttribute("_db_config", configMap);
-                request.setAttribute("_db_connect_errno", null);
-                request.setAttribute("_db_connect_error", null);
-
-                title += "-" + configMap.get("dataBase") + "@" + configMap.get("server") + " on " + configMap.get("port") + " - " + configMap.get("userName");
-            }
-            //out.print(request.getSession());
-            Statement stmt=conn.createStatement();
-            String sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
-                    + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
-                    + " FROM INFORMATION_SCHEMA.TABLES AS T"
-                    + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
-                    + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dataBase") + "' ORDER BY T.TABLE_NAME, ORDINAL_POSITION";
-            ResultSet result = stmt.executeQuery(sql);
-            while(result.next()){
-                String tableName = result.getString("TABLE_NAME");
-                Table table = new Table();
-                table.tableName         = tableName;
-                table.tableComment      = result.getString("TABLE_COMMENT");
-                table.columnName        = result.getString("COLUMN_NAME");
-                table.columnType        = result.getString("COLUMN_TYPE");
-                table.columnComment     = result.getString("COLUMN_COMMENT");
-                table.isNullable        = result.getString("IS_NULLABLE");
-                table.columnKey         = result.getString("COLUMN_KEY");
-                table.extra             = result.getString("EXTRA");
-                table.columnDefault     = result.getString("COLUMN_DEFAULT");
-                table.characterSetName  = result.getString("CHARACTER_SET_NAME");
-                table.tableCollation    = result.getString("TABLE_COLLATION");
-                table.collationName     = result.getString("COLLATION_NAME");
-                table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
-                table.autoIncrement     = result.getLong("AUTO_INCREMENT");
-                table.createTime        = result.getString("CREATE_TIME");
-                if(tableMap.get(tableName) != null && tableMap.get(tableName).size() > 0){
-                    tableMap.get(tableName).add(table);
-                }else{
-                    List<Table> tableGroupList = new ArrayList<Table>();
-                    tableGroupList.add(table);
-                    tableMap.put(tableName, tableGroupList);
-                }
-            }
-
-            sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
-                + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
-                + " FROM INFORMATION_SCHEMA.TABLES AS T"
-                + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
-                + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dataBase") + "' ORDER BY T.TABLE_NAME, COLUMN_NAME";
-            result = stmt.executeQuery(sql);
-            while(result.next()){
-                String tableName = result.getString("TABLE_NAME");
-                Table table = new Table();
-                table.tableName         = tableName;
-                table.tableComment      = result.getString("TABLE_COMMENT");
-                table.columnName        = result.getString("COLUMN_NAME");
-                table.columnType        = result.getString("COLUMN_TYPE");
-                table.columnComment     = result.getString("COLUMN_COMMENT");
-                table.isNullable        = result.getString("IS_NULLABLE");
-                table.columnKey         = result.getString("COLUMN_KEY");
-                table.extra             = result.getString("EXTRA");
-                table.columnDefault     = result.getString("COLUMN_DEFAULT");
-                table.characterSetName  = result.getString("CHARACTER_SET_NAME");
-                table.tableCollation    = result.getString("TABLE_COLLATION");
-                table.collationName     = result.getString("COLLATION_NAME");
-                table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
-                table.autoIncrement     = result.getLong("AUTO_INCREMENT");
-                table.createTime        = result.getString("CREATE_TIME");
-                if(tableSortedMap.get(tableName) != null && tableSortedMap.get(tableName).size() > 0){
-                    tableSortedMap.get(tableName).add(table);
-                }else{
-                    List<Table> tableGroupList = new ArrayList<Table>();
-                    tableGroupList.add(table);
-                    tableSortedMap.put(tableName, tableGroupList);
-                }
-            }
-
-            if(result != null)result.close();
-            if(stmt != null)stmt.close();
-            if(conn != null)conn.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            out.print(e.getMessage());
+        String[] postConfigString = {"dbDatabase", "dbUser", "dbPassword", "dbServer", "dbPort"};
+        // 设置Session
+        for(int i = 0, length = postConfigString.length; i < length; i++){
+            session.setAttribute("_" + postConfigString[i], request.getParameter(postConfigString[i]));
         }
+        session.setAttribute("_dbConnectWrong", false);
+
+        // 设置Cookie
+        if(request.getParameter("rememberConfig") != null){
+            Cookie[] cookieTemps = new Cookie[postConfigString.length];
+            for(int i = 0, length = postConfigString.length; i < length; i++){
+                cookieTemps[i] = new Cookie("_" + postConfigString[i], request.getParameter(postConfigString[i]));
+                cookieTemps[i].setMaxAge(24*3600*365);
+                response.addCookie(cookieTemps[i]);
+            }
+        }
+        return;
+    }
+
+    // 依次删除cookie
+    if("unsetConfig".equals(queryString)){
+        // 删除cookie
+        if(isSetCookie){
+            Cookie[] cookieTemps = new Cookie[configs.length];
+            for(int i = 0, length = configs.length; i < length; i++){
+                cookieTemps[i] = new Cookie(configs[i], null);
+                cookieTemps[i].setMaxAge(0);
+                response.addCookie(cookieTemps[i]);
+            }
+            response.sendRedirect(baseUrl + "?deleteSuccess");
+        }
+        // 删除session
     }
 
     if("config".equals(queryString)){
@@ -338,7 +432,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_database">数据库名</label>
-                        <input type="text" name="dbDatabase" id="db_database" value="<% out.print(tmpConfig.get("dbDatabase")!=null?tmpConfig.get("dbDatabase"):"heanes.com"); %>" class="normal-input" title="请输入数据库名" placeholder="请输入数据库名" required />
+                        <input type="text" name="dbDatabase" id="db_database" value="<% out.print(configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):"heanes.com"); %>" class="normal-input" title="请输入数据库名" placeholder="请输入数据库名" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">将连接哪个数据库？</span>
@@ -350,7 +444,7 @@
                         <!-- 解决浏览器自动填充数据的问题 -->
                         <label for="fake_db_user" style="display:none"></label>
                         <input type="text" name="fake_username_remembered" id="fake_db_user" style="display:none" />
-                        <input type="text" name="dbUser" id="db_user" value="<% out.print(tmpConfig.get("dbUser")!=null?tmpConfig.get("dbUser"):"webdb");%>" class="normal-input" title="请输入用户名" placeholder="请输入用户名" required />
+                        <input type="text" name="dbUser" id="db_user" value="<% out.print(configMap.get("dbUser")!=null?configMap.get("dbUser"):"webdb");%>" class="normal-input" title="请输入用户名" placeholder="请输入用户名" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">你的MySQL用户名</span>
@@ -362,7 +456,7 @@
                         <!-- 解决浏览器自动填充数据的问题 -->
                         <label for="fake_db_password" style="display:none"></label>
                         <input type="password" name="fake_password_remembered" id="fake_db_password" style="display:none" />
-                        <input type="password" name="dbPassword" id="db_password" autocomplete="off" value="<% out.print(tmpConfig.get("dbPassword")!=null?tmpConfig.get("dbPassword"):"p()P]aHqCEfwVY@7");%>" class="normal-input" title="请输入密码" placeholder="请输入密码" required />
+                        <input type="password" name="dbPassword" id="db_password" autocomplete="off" value="<% out.print(configMap.get("dbPassword")!=null?configMap.get("dbPassword"):"p()P]aHqCEfwVY@7");%>" class="normal-input" title="请输入密码" placeholder="请输入密码" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">数据库密码</span>
@@ -371,7 +465,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_server">数据库主机</label>
-                        <input type="text" name="dbServer" id="db_server" value="<% out.print(tmpConfig.get("dbServer")!=null?tmpConfig.get("dbServer"):"localhost");%>" class="normal-input" title="请输入数据库主机" placeholder="localhost" required />
+                        <input type="text" name="dbServer" id="db_server" value="<% out.print(configMap.get("dbServer")!=null?configMap.get("dbServer"):"localhost");%>" class="normal-input" title="请输入数据库主机" placeholder="localhost" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">连接地址，如localhost、IP地址</span>
@@ -380,7 +474,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_port">端口</label>
-                        <input type="text" name="dbPort" id="db_port" value="<% out.print(tmpConfig.get("dbPort")!=null?tmpConfig.get("dbPort"):"3306");%>" class="normal-input" title="请输入端口" placeholder="请输入端口" required />
+                        <input type="text" name="dbPort" id="db_port" value="<% out.print(configMap.get("dbPort")!=null?configMap.get("dbPort"):"3306");%>" class="normal-input" title="请输入端口" placeholder="请输入端口" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">数据库连接什么端口？</span>
@@ -411,7 +505,7 @@
                     $.ajax({
                         url: "<%=baseUrl%>?postConfig",//请求地址
                         type: "POST",//请求方式
-                        data: { db_server:$db_server, db_database: $db_database, db_user: $db_user, db_password: $db_password, db_port:$db_port ,remember_config:$remember_config_val},//请求参数
+                        data: { dbServer:$db_server, dbDatabase: $db_database, dbUser: $db_user, dbPassword: $db_password, dbPort:$db_port ,rememberConfig:$remember_config_val},//请求参数
                         dataType: "json",
                         success: function (response, xml) {
                             // 此处放成功后执行的代码
@@ -450,10 +544,10 @@
                         <div class="toolbar-button-block" id="connect_info">
                             <a href="javascript:void(0);" class="btn btn-tight connect-info">连接信息</a>
                             <div class="connect-info-block">
-                                <p><span class="config-field">数据库：</span><span class="config-value"><% out.print(tmpConfig.get("dbDatabase")!=null?tmpConfig.get("dbDatabase"):"");%></span></p>
-                                <p><span class="config-field">用户：</span><span class="config-value"><% out.print(tmpConfig.get("dbUser")!=null?tmpConfig.get("dbUser"):"");%></span></p>
-                                <p><span class="config-field">主机：</span><span class="config-value"><% out.print(tmpConfig.get("dbServer")!=null?tmpConfig.get("dbServer"):"");%></span></p>
-                                <p><span class="config-field">端口：</span><span class="config-value"><% out.print(tmpConfig.get("dbPort")!=null?tmpConfig.get("dbPort"):"");%></span></p>
+                                <p><span class="config-field">数据库：</span><span class="config-value"><% out.print(configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):"");%></span></p>
+                                <p><span class="config-field">用户：</span><span class="config-value"><% out.print(configMap.get("dbUser")!=null?configMap.get("dbUser"):"");%></span></p>
+                                <p><span class="config-field">主机：</span><span class="config-value"><% out.print(configMap.get("dbServer")!=null?configMap.get("dbServer"):"");%></span></p>
+                                <p><span class="config-field">端口：</span><span class="config-value"><% out.print(configMap.get("dbPort")!=null?configMap.get("dbPort"):"");%></span></p>
                                 <p><span class="config-field">表总数：</span><span class="config-value"><%=tableMap.size()%></span></p>
                             </div>
                         </div>
@@ -509,11 +603,11 @@
                                     <td class="column-data-type"><%=tableMap.get(tableName).get(k).columnType%></td>
                                     <td class="column-comment"><%=tableMap.get(tableName).get(k).columnComment%></td>
                                     <td class="column-can-be-null"><%=tableMap.get(tableName).get(k).isNullable%></td>
-                                    <td class="column-default-value"><%=tableMap.get(tableName).get(k).columnDefault%></td>
+                                    <td class="column-default-value"><%=tableMap.get(tableName).get(k).columnDefault!=null?tableMap.get(tableName).get(k).columnDefault:""%></td>
                                     <td class="column-auto-increment"><%=("auto_increment".equals(tableMap.get(tableName).get(k).extra) ? "YES" : "")%></td>
                                     <td class="column-primary-key"><%=("PRI".equals(tableMap.get(tableName).get(k).columnKey) ? "YES" : "")%></td>
-                                    <td class="column-character-set-name"><%=tableMap.get(tableName).get(k).characterSetName%></td>
-                                    <td class="column-collation-name"><%=tableMap.get(tableName).get(k).collationName%></td>
+                                    <td class="column-character-set-name"><%=tableMap.get(tableName).get(k).characterSetName!=null?tableMap.get(tableName).get(k).characterSetName:""%></td>
+                                    <td class="column-collation-name"><%=tableMap.get(tableName).get(k).collationName!=null?tableMap.get(tableName).get(k).collationName:""%></td>
                                 </tr>
                                 <% }%>
                                 </tbody>
@@ -532,11 +626,11 @@
                                     <td class="column-data-type"><%=tableSortedMap.get(tableName).get(k).columnType%></td>
                                     <td class="column-comment"><%=tableSortedMap.get(tableName).get(k).columnComment%></td>
                                     <td class="column-can-be-null"><%=tableSortedMap.get(tableName).get(k).isNullable%></td>
-                                    <td class="column-default-value"><%=tableSortedMap.get(tableName).get(k).columnDefault%></td>
+                                    <td class="column-default-value"><%=tableSortedMap.get(tableName).get(k).columnDefault!=null?tableSortedMap.get(tableName).get(k).columnDefault:""%></td>
                                     <td class="column-auto-increment"><%=("auto_increment".equals(tableSortedMap.get(tableName).get(k).extra) ? "YES" : "")%></td>
                                     <td class="column-primary-key"><%=("PRI".equals(tableSortedMap.get(tableName).get(k).columnKey) ? "YES" : "")%></td>
-                                    <td class="column-character-set-name"><%=tableSortedMap.get(tableName).get(k).characterSetName%></td>
-                                    <td class="column-collation-name"><%=tableSortedMap.get(tableName).get(k).collationName%></td>
+                                    <td class="column-character-set-name"><%=tableSortedMap.get(tableName).get(k).characterSetName!=null?tableSortedMap.get(tableName).get(k).characterSetName:""%></td>
+                                    <td class="column-collation-name"><%=tableSortedMap.get(tableName).get(k).collationName!=null?tableSortedMap.get(tableName).get(k).collationName:""%></td>
                                 </tr>
                                 <% }%>
                                 </tbody>
@@ -773,8 +867,8 @@
                     <div class="content-row">
                         <p class="content-normal-p">数据库连接错误，请检查配置信息是否填写正确。</p>
                         <p class="content-p reason-p">
-                            <% out.print(request.getAttribute("_db_connect_errno")!=null ? request.getAttribute("_db_connect_errno") : "Unknown error code"); %> :
-                            <% out.print(request.getAttribute("_db_connect_error")!=null ? request.getAttribute("_db_connect_error") : "Unknown reason"); %>
+                            <%=request.getAttribute("_dbConnectErrNo")!=null ? request.getAttribute("_dbConnectErrNo") : "Unknown error code"%> :
+                            <%=request.getAttribute("_dbConnectErrOr")!=null ? request.getAttribute("_dbConnectErrOr") : "Unknown reason"%>
                         </p>
                         <p class="text-center"><a href="?config" class="btn change-db">重新填写数据库配置</a></p>
                     </div>
