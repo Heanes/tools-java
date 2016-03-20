@@ -98,6 +98,7 @@
     Map<String, List<Column>> tableSortedMap = new HashMap<String, List<Column>>();
 
     List<Table> tableList = new ArrayList<Table>();
+    List<Table> tableSortedList = new ArrayList<Table>();
 
     String title = "数据字典";
     String queryString = request.getQueryString();
@@ -248,7 +249,6 @@
                     }
                 }
 
-                List<Table> tableSortedList = new ArrayList<Table>();
                 i = 0;
                 for(String tableName : tableSortedMap.keySet()){
                     Table table = new Table();
@@ -636,7 +636,7 @@
                 <div class="table-list" id="table_list">
                     <%for(int i = 0, size = tableList.size(); i<size; i++){
                         Table table = tableList.get(i);
-                        Table tableSorted = tableList.get(i);
+                        Table tableSorted = tableSortedList.get(i);
                     %>
                     <div class="table-one-block">
                         <div class="table-name-title-block">
