@@ -3,10 +3,15 @@
   @author fanggang
   @time: 2015-11-24 19:11:24
 --%>
-<%@page contentType="text/html;charset=UTF-8" language="java"%>
-<%@page import="java.util.*"%>
-<%@page import="java.sql.*"%>
-<%@page import="java.text.NumberFormat"%>
+<%@ page contentType="text/html;charset=UTF-8" language="java"%>
+<%@ page import="java.sql.Connection"%>
+<%@ page import="java.sql.DriverManager"%>
+<%@ page import="java.sql.ResultSet"%>
+<%@ page import="java.sql.Statement" %>
+<%@ page import="java.util.ArrayList" %>
+<%@ page import="java.util.HashMap" %>
+<%@ page import="java.util.List" %>
+<%@ page import="java.util.Map" %>
 <%
     class Table{
         public String tableName;        //表名
@@ -29,10 +34,12 @@
     String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path;
     String baseUrl = basePath + request.getContextPath() + request.getServletPath();
 
-    Boolean isSetSession = false;
+    Boolean isSetSession;
     Boolean isSetCookie = false;
     Boolean isSetGet = false;
-    Boolean connectWrong = false;
+    Boolean connectWrong;
+
+    String[] configs = {"_dbServer", "_dbPort", "_dbUser", "_dbPassword", "_dbDatabase", "_dbConnectWrong", "_dbConnectErrOr"};
 
     // 获取cookie,检测cookie中是否存在配置,且没有记录连接错误的信息
     Map<String, String> cookieMap = new HashMap<>();
@@ -40,29 +47,10 @@
     if (cookies != null && cookies.length > 0) {
         for (Cookie cookie : cookies) {
             if(cookie.getName() != null){
-                if("_dbDatabase".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbUser".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbPassword".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbServer".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbPort".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbConnectWrong".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbConnectErrNo".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
-                }
-                if("_dbConnectErrOr".equals(cookie.getName())){
-                    cookieMap.put(cookie.getName(), cookie.getValue());
+                for(String cfg : configs){
+                    if(cfg.equals(cookie.getName())){
+                        cookieMap.put(cfg, cookie.getValue());
+                    }
                 }
             }
         }
@@ -74,20 +62,27 @@
         }
     }
 
-    String[] configs = {"_dbServer", "_dbPort", "_dbUser", "_dbPassword", "_dbDatabase", "_dbConnectWrong", "_dbConnectErrNo", "_dbConnectErrOr"};
-
-    // 获取Session
+    // 取Session
     Map<String, String> sessionMap = new HashMap<>();
     for (String cfg : configs) {
         sessionMap.put(cfg, "" + session.getAttribute(cfg));
     }
-    isSetSession = request.getAttribute("_dbPassword")!=null && request.getAttribute("_dbDatabase")!=null && request.getAttribute("_dbUser")!=null ;
+    isSetSession = session.getAttribute("_dbPassword")!=null && session.getAttribute("_dbDatabase")!=null && session.getAttribute("_dbUser")!=null ;
     connectWrong = "true".equals(sessionMap.get("_dbConnectWrong"));
 
+    Map<String, String> getMap = new HashMap<>();
+    String[] gets = {"server", "port", "user", "pwd", "db"}; // 此字符数组要与configs对应
+    for(int i = 0, length = gets.length; i<length; i++){
+        getMap.put(configs[i], request.getParameter(gets[i]));
+    }
+    isSetGet = getMap.get("_dbDatabase")!=null && ( (isSetCookie || isSetSession) || (getMap.get("_dbUser")!=null || getMap.get("_dbPassword")!=null));
+
     Map<String, String> configMap = new HashMap<String, String>();
+    Map<String, String> configMapTemp = new HashMap<String, String>();
+    configMapTemp = sessionMap;
     configMap.put("dbServer",   "localhost");
     configMap.put("dbPort",     "3307");
-    configMap.put("dbDataBase", "tmc");
+    configMap.put("dbDatabase", "heanes.com");
     configMap.put("dbUser",     "root");
     configMap.put("dbPassword", "123456");
 
@@ -122,7 +117,11 @@
             }
             // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入session或cookie
             if(isSetGet){
-                ;
+                configMap.put("dbServer",     getMap.get("_dbServer")!=null ? getMap.get("_dbServer"): configMap.get("dbServer"));
+                configMap.put("dbPort",       getMap.get("_dbPort")!=null ? getMap.get("_dbPort"): configMap.get("dbPort"));
+                configMap.put("dbDatabase",   getMap.get("_dbDatabase")!=null ? getMap.get("_dbDatabase"): configMap.get("dbDatabase"));
+                configMap.put("dbUser",       getMap.get("_dbUser")!=null ? getMap.get("_dbUser"): configMap.get("dbUser"));
+                configMap.put("dbPassword",   getMap.get("_dbPassword")!=null ? getMap.get("_dbPassword"): configMap.get("dbPassword"));
             }
             try {
                 // 3.原生java 连接数据库并执行sql查询
@@ -138,7 +137,6 @@
                 }else{
                     // 3.原生java 保存信息到cookie或session中
                     session.setAttribute("_dbConnectWrong", false);
-                    session.setAttribute("_dbConnectErrNo", null);
                     session.setAttribute("_dbConnectErrOr", null);
                     if("true".equals(cookieMap.get("_dbConnectWrong"))){
                         Cookie[] cookieTemps = new Cookie[configs.length];
@@ -149,7 +147,7 @@
                         }
                     }
 
-                    title += "-" + configMap.get("dbDataBase") + "@" + configMap.get("dbServer") + " on " + configMap.get("dbPort") + " - " + configMap.get("dbUser");
+                    title += "-" + configMap.get("dbDatabase") + "@" + configMap.get("dbServer") + " on " + configMap.get("dbPort") + " - " + configMap.get("dbUser");
                 }
                 //out.print(request.getSession());
                 Statement stmt=conn.createStatement();
@@ -157,7 +155,7 @@
                         + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
                         + " FROM INFORMATION_SCHEMA.TABLES AS T"
                         + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
-                        + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDataBase") + "' ORDER BY T.TABLE_NAME, ORDINAL_POSITION";
+                        + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDatabase") + "' ORDER BY T.TABLE_NAME, ORDINAL_POSITION";
                 ResultSet result = stmt.executeQuery(sql);
                 while(result.next()){
                     String tableName = result.getString("TABLE_NAME");
@@ -190,7 +188,7 @@
                         + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
                         + " FROM INFORMATION_SCHEMA.TABLES AS T"
                         + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
-                        + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDataBase") + "' ORDER BY T.TABLE_NAME, COLUMN_NAME";
+                        + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDatabase") + "' ORDER BY T.TABLE_NAME, COLUMN_NAME";
                 result = stmt.executeQuery(sql);
                 while(result.next()){
                     String tableName = result.getString("TABLE_NAME");
@@ -224,11 +222,9 @@
                 if(conn != null)conn.close();
             } catch (Exception e) {
                 e.printStackTrace();
-                out.print(e.getMessage());
 
                 // session中保存连接错误信息
                 session.setAttribute("_dbConnectWrong", true);
-                session.setAttribute("_dbConnectErrNo", e.getMessage());
                 session.setAttribute("_dbConnectErrOr", e.getMessage());
 
                 // cookie中保存连接错误信息
@@ -246,8 +242,8 @@
     if("postConfig".equals(queryString)){
         String[] postConfigString = {"dbDatabase", "dbUser", "dbPassword", "dbServer", "dbPort"};
         // 设置Session
-        for(int i = 0, length = postConfigString.length; i < length; i++){
-            session.setAttribute("_" + postConfigString[i], request.getParameter(postConfigString[i]));
+        for (String postCfg : postConfigString) {
+            session.setAttribute("_" + postCfg, request.getParameter(postCfg));
         }
         session.setAttribute("_dbConnectWrong", false);
 
@@ -276,6 +272,9 @@
             response.sendRedirect(baseUrl + "?deleteSuccess");
         }
         // 删除session
+        for(String cfg : configs){
+            session.setAttribute(cfg, null);
+        }
     }
 
     if("config".equals(queryString)){
@@ -287,7 +286,6 @@
     if("deleteSuccess".equals(queryString)){
         title = "已经成功删除保存的配置信息！";
     }
-
 %>
 <!DOCTYPE html>
 <html>
@@ -432,7 +430,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_database">数据库名</label>
-                        <input type="text" name="dbDatabase" id="db_database" value="<% out.print(configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):"heanes.com"); %>" class="normal-input" title="请输入数据库名" placeholder="请输入数据库名" required />
+                        <input type="text" name="dbDatabase" id="db_database" value="<%=configMapTemp.get("_dbDatabase")!=null?configMapTemp.get("_dbDatabase"):configMap.get("dbDatabase")%>" class="normal-input" title="请输入数据库名" placeholder="请输入数据库名" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">将连接哪个数据库？</span>
@@ -444,7 +442,7 @@
                         <!-- 解决浏览器自动填充数据的问题 -->
                         <label for="fake_db_user" style="display:none"></label>
                         <input type="text" name="fake_username_remembered" id="fake_db_user" style="display:none" />
-                        <input type="text" name="dbUser" id="db_user" value="<% out.print(configMap.get("dbUser")!=null?configMap.get("dbUser"):"webdb");%>" class="normal-input" title="请输入用户名" placeholder="请输入用户名" required />
+                        <input type="text" name="dbUser" id="db_user" value="<%=configMapTemp.get("_dbUser")!=null?configMapTemp.get("_dbUser"):configMap.get("dbUser")%>" class="normal-input" title="请输入用户名" placeholder="请输入用户名" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">你的MySQL用户名</span>
@@ -456,7 +454,7 @@
                         <!-- 解决浏览器自动填充数据的问题 -->
                         <label for="fake_db_password" style="display:none"></label>
                         <input type="password" name="fake_password_remembered" id="fake_db_password" style="display:none" />
-                        <input type="password" name="dbPassword" id="db_password" autocomplete="off" value="<% out.print(configMap.get("dbPassword")!=null?configMap.get("dbPassword"):"p()P]aHqCEfwVY@7");%>" class="normal-input" title="请输入密码" placeholder="请输入密码" required />
+                        <input type="password" name="dbPassword" id="db_password" autocomplete="off" value="<%=configMapTemp.get("_dbPassword")!=null?configMapTemp.get("_dbPassword"):configMap.get("dbPassword")%>" class="normal-input" title="请输入密码" placeholder="请输入密码" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">数据库密码</span>
@@ -465,7 +463,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_server">数据库主机</label>
-                        <input type="text" name="dbServer" id="db_server" value="<% out.print(configMap.get("dbServer")!=null?configMap.get("dbServer"):"localhost");%>" class="normal-input" title="请输入数据库主机" placeholder="localhost" required />
+                        <input type="text" name="dbServer" id="db_server" value="<%=configMapTemp.get("_dbServer")!=null?configMapTemp.get("_dbServer"):configMap.get("dbServer")%>" class="normal-input" title="请输入数据库主机" placeholder="localhost" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">连接地址，如localhost、IP地址</span>
@@ -474,7 +472,7 @@
                 <div class="input-row">
                     <div class="input-field">
                         <label for="db_port">端口</label>
-                        <input type="text" name="dbPort" id="db_port" value="<% out.print(configMap.get("dbPort")!=null?configMap.get("dbPort"):"3306");%>" class="normal-input" title="请输入端口" placeholder="请输入端口" required />
+                        <input type="text" name="dbPort" id="db_port" value="<%=configMapTemp.get("_dbPort")!=null?configMapTemp.get("_dbPort"):configMap.get("dbPort")%>" class="normal-input" title="请输入端口" placeholder="请输入端口" required />
                     </div>
                     <div class="input-tips">
                         <span class="tips">数据库连接什么端口？</span>
@@ -689,6 +687,7 @@
                     // 若只有一条匹配记录，则展开显示
                     if($match_result.length == 1){
                         table_list.children[$match_result[0]].children[0].className = 'table-name-title-block lap-on';
+                        table_list.children[$match_result[0]].children[0].children[0].className = 'table-name-title lap-on';
                         table_list.children[$match_result[0]].children[1].style.display = 'block';
                         table_list.children[$match_result[0]].children[0].children[0].children[0].children[0].innerText = "-";
                         $lap_table.className = 'btn btn-tight lap-table';
@@ -867,8 +866,7 @@
                     <div class="content-row">
                         <p class="content-normal-p">数据库连接错误，请检查配置信息是否填写正确。</p>
                         <p class="content-p reason-p">
-                            <%=request.getAttribute("_dbConnectErrNo")!=null ? request.getAttribute("_dbConnectErrNo") : "Unknown error code"%> :
-                            <%=request.getAttribute("_dbConnectErrOr")!=null ? request.getAttribute("_dbConnectErrOr") : "Unknown reason"%>
+                            <%=session.getAttribute("_dbConnectErrOr")!=null ? session.getAttribute("_dbConnectErrOr") : "Unknown reason"%>
                         </p>
                         <p class="text-center"><a href="?config" class="btn change-db">重新填写数据库配置</a></p>
                     </div>
