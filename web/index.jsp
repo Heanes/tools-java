@@ -617,12 +617,12 @@
             <div class="fix-category" id="fix_category">
                 <div class="category-content-block">
                     <ul>
-                        <%for(int i = 1, size = tableList.size(); i<size; i++){
+                        <%for(int i = 0, size = tableList.size(); i<size; i++){
                             Table table = tableList.get(i);
                             Table tableSorted = tableList.get(i);
                         %>
                         <li>
-                            <a href="#<%=table.tableName%>"><%=String.format("%0"+(size + "").length() + "d", i) + "." + table.tableName%><span class="category-table-name"><%=table.tableComment%></span></a>
+                            <a href="#<%=table.tableName%>"><%=String.format("%0"+(size + "").length() + "d", i+1) + "." + table.tableName%><span class="category-table-name"><%=table.tableComment%></span></a>
                         </li>
                         <%}%>
                     </ul>
@@ -634,7 +634,7 @@
             <div class="list-content">
                 <h2 style="text-align:center;"><%=title%></h2>
                 <div class="table-list" id="table_list">
-                    <%for(int i = 1, size = tableList.size(); i<size; i++){
+                    <%for(int i = 0, size = tableList.size(); i<size; i++){
                         Table table = tableList.get(i);
                         Table tableSorted = tableList.get(i);
                     %>
@@ -643,7 +643,7 @@
                             <h3 class="table-name-title lap-on">
                                 <a id="<%=table.tableName%>" class="table-name-anchor">
                                     <span class="lap-icon">-</span>
-                                    <span class="db-table-index"><%=String.format("%0"+(tableMap.size() + "").length() + "d", i)%>.</span>
+                                    <span class="db-table-index"><%=String.format("%0"+(tableMap.size() + "").length() + "d", i+1)%>.</span>
                                     <span class="db-table-name"><%=table.tableName%></span>
                                     <span class="db-table-comment"><%=table.tableComment%></span>
                                 </a>
