@@ -12,8 +12,9 @@
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.List" %>
 <%@ page import="java.util.Map" %>
+<%@ page import="com.alibaba.fastjson.JSON" %>
 <%
-    class Table{
+    class Column{
         public String tableName;        //表名
         public String tableComment;     //表注释
         public String columnName;       //字段名
@@ -29,6 +30,12 @@
         public Long   ordinalPosition;  // 字段在表中序号
         public Long   autoIncrement;    // 表自增值
         public String createTime;       // 创建时间
+    }
+    class Table{
+        public String tableName;
+        public String tableComment;
+        public int    index;
+        public List<Column> columns;
     }
     String path = request.getContextPath();
     String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path;
@@ -79,15 +86,18 @@
 
     Map<String, String> configMap = new HashMap<String, String>();
     Map<String, String> configMapTemp = new HashMap<String, String>();
-    configMapTemp = sessionMap;
+    configMapTemp = configMap;
     configMap.put("dbServer",   "localhost");
     configMap.put("dbPort",     "3307");
     configMap.put("dbDatabase", "heanes.com");
     configMap.put("dbUser",     "root");
     configMap.put("dbPassword", "123456");
 
-    Map<String, List<Table>> tableMap = new HashMap<String, List<Table>>();
-    Map<String, List<Table>> tableSortedMap = new HashMap<String, List<Table>>();
+    List<String> databases = new ArrayList<>();
+    Map<String, List<Column>> tableMap = new HashMap<String, List<Column>>();
+    Map<String, List<Column>> tableSortedMap = new HashMap<String, List<Column>>();
+
+    List<Table> tableList = new ArrayList<Table>();
 
     String title = "数据字典";
     String queryString = request.getQueryString();
@@ -115,7 +125,7 @@
                 configMap.put("dbUser",       sessionMap.get("_dbUser"));
                 configMap.put("dbPassword",   sessionMap.get("_dbPassword"));
             }
-            // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入session或cookie
+            // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入Session或Cookie
             if(isSetGet){
                 configMap.put("dbServer",     getMap.get("_dbServer")!=null ? getMap.get("_dbServer"): configMap.get("dbServer"));
                 configMap.put("dbPort",       getMap.get("_dbPort")!=null ? getMap.get("_dbPort"): configMap.get("dbPort"));
@@ -149,9 +159,19 @@
 
                     title += "-" + configMap.get("dbDatabase") + "@" + configMap.get("dbServer") + " on " + configMap.get("dbPort") + " - " + configMap.get("dbUser");
                 }
-                //out.print(request.getSession());
                 Statement stmt=conn.createStatement();
-                String sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
+                ResultSet resultSet;
+                // 取出所有数据库
+                String sql = "SELECT DISTINCT TABLE_SCHEMA AS `database` FROM information_schema.TABLES";
+                resultSet = stmt.executeQuery(sql);
+                while (resultSet.next()){
+                    if(!"information_schema".equals(resultSet.getString("database")) && !"mysql".equals(resultSet.getString("database")) && !"performance_schema".equals(resultSet.getString("database"))){
+                        databases.add(resultSet.getString("database"));
+                    }
+                }
+                System.out.println(JSON.toJSONString(databases));
+
+                sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
                         + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
                         + " FROM INFORMATION_SCHEMA.TABLES AS T"
                         + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
@@ -159,29 +179,40 @@
                 ResultSet result = stmt.executeQuery(sql);
                 while(result.next()){
                     String tableName = result.getString("TABLE_NAME");
-                    Table table = new Table();
-                    table.tableName         = tableName;
-                    table.tableComment      = result.getString("TABLE_COMMENT");
-                    table.columnName        = result.getString("COLUMN_NAME");
-                    table.columnType        = result.getString("COLUMN_TYPE");
-                    table.columnComment     = result.getString("COLUMN_COMMENT");
-                    table.isNullable        = result.getString("IS_NULLABLE");
-                    table.columnKey         = result.getString("COLUMN_KEY");
-                    table.extra             = result.getString("EXTRA");
-                    table.columnDefault     = result.getString("COLUMN_DEFAULT");
-                    table.characterSetName  = result.getString("CHARACTER_SET_NAME");
-                    table.tableCollation    = result.getString("TABLE_COLLATION");
-                    table.collationName     = result.getString("COLLATION_NAME");
-                    table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
-                    table.autoIncrement     = result.getLong("AUTO_INCREMENT");
-                    table.createTime        = result.getString("CREATE_TIME");
+                    Column column = new Column();
+                    column.tableName         = tableName;
+                    column.tableComment      = result.getString("TABLE_COMMENT");
+                    column.columnName        = result.getString("COLUMN_NAME");
+                    column.columnType        = result.getString("COLUMN_TYPE");
+                    column.columnComment     = result.getString("COLUMN_COMMENT");
+                    column.isNullable        = result.getString("IS_NULLABLE");
+                    column.columnKey         = result.getString("COLUMN_KEY");
+                    column.extra             = result.getString("EXTRA");
+                    column.columnDefault     = result.getString("COLUMN_DEFAULT");
+                    column.characterSetName  = result.getString("CHARACTER_SET_NAME");
+                    column.tableCollation    = result.getString("TABLE_COLLATION");
+                    column.collationName     = result.getString("COLLATION_NAME");
+                    column.ordinalPosition   = result.getLong("ORDINAL_POSITION");
+                    column.autoIncrement     = result.getLong("AUTO_INCREMENT");
+                    column.createTime        = result.getString("CREATE_TIME");
                     if(tableMap.get(tableName) != null && tableMap.get(tableName).size() > 0){
-                        tableMap.get(tableName).add(table);
+                        tableMap.get(tableName).add(column);
                     }else{
-                        List<Table> tableGroupList = new ArrayList<Table>();
-                        tableGroupList.add(table);
+                        List<Column> tableGroupList = new ArrayList<Column>();
+                        tableGroupList.add(column);
                         tableMap.put(tableName, tableGroupList);
                     }
+                }
+
+                int i = 0;
+                for(String tableName : tableMap.keySet()){
+                    Table table = new Table();
+                    table.tableName = tableName;
+                    table.tableComment = tableMap.get(tableName).get(0).tableComment;
+                    table.columns = tableMap.get(tableName);
+                    table.index = i;
+                    tableList.add(table);
+                    i++;
                 }
 
                 sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
@@ -192,29 +223,46 @@
                 result = stmt.executeQuery(sql);
                 while(result.next()){
                     String tableName = result.getString("TABLE_NAME");
-                    Table table = new Table();
-                    table.tableName         = tableName;
-                    table.tableComment      = result.getString("TABLE_COMMENT");
-                    table.columnName        = result.getString("COLUMN_NAME");
-                    table.columnType        = result.getString("COLUMN_TYPE");
-                    table.columnComment     = result.getString("COLUMN_COMMENT");
-                    table.isNullable        = result.getString("IS_NULLABLE");
-                    table.columnKey         = result.getString("COLUMN_KEY");
-                    table.extra             = result.getString("EXTRA");
-                    table.columnDefault     = result.getString("COLUMN_DEFAULT");
-                    table.characterSetName  = result.getString("CHARACTER_SET_NAME");
-                    table.tableCollation    = result.getString("TABLE_COLLATION");
-                    table.collationName     = result.getString("COLLATION_NAME");
-                    table.ordinalPosition   = result.getLong("ORDINAL_POSITION");
-                    table.autoIncrement     = result.getLong("AUTO_INCREMENT");
-                    table.createTime        = result.getString("CREATE_TIME");
+                    Column column = new Column();
+                    column.tableName         = tableName;
+                    column.tableComment      = result.getString("TABLE_COMMENT");
+                    column.columnName        = result.getString("COLUMN_NAME");
+                    column.columnType        = result.getString("COLUMN_TYPE");
+                    column.columnComment     = result.getString("COLUMN_COMMENT");
+                    column.isNullable        = result.getString("IS_NULLABLE");
+                    column.columnKey         = result.getString("COLUMN_KEY");
+                    column.extra             = result.getString("EXTRA");
+                    column.columnDefault     = result.getString("COLUMN_DEFAULT");
+                    column.characterSetName  = result.getString("CHARACTER_SET_NAME");
+                    column.tableCollation    = result.getString("TABLE_COLLATION");
+                    column.collationName     = result.getString("COLLATION_NAME");
+                    column.ordinalPosition   = result.getLong("ORDINAL_POSITION");
+                    column.autoIncrement     = result.getLong("AUTO_INCREMENT");
+                    column.createTime        = result.getString("CREATE_TIME");
                     if(tableSortedMap.get(tableName) != null && tableSortedMap.get(tableName).size() > 0){
-                        tableSortedMap.get(tableName).add(table);
+                        tableSortedMap.get(tableName).add(column);
                     }else{
-                        List<Table> tableGroupList = new ArrayList<Table>();
-                        tableGroupList.add(table);
+                        List<Column> tableGroupList = new ArrayList<Column>();
+                        tableGroupList.add(column);
                         tableSortedMap.put(tableName, tableGroupList);
                     }
+                }
+
+                List<Table> tableSortedList = new ArrayList<Table>();
+                i = 0;
+                for(String tableName : tableSortedMap.keySet()){
+                    Table table = new Table();
+                    table.tableName = tableName;
+                    table.tableComment = tableSortedMap.get(tableName).get(0).tableComment;
+                    table.columns = tableSortedMap.get(tableName);
+                    table.index = i;
+                    tableSortedList.add(table);
+                    i++;
+                }
+
+                if("json".equals(queryString)){
+                    out.print(JSON.toJSONString(tableList));
+                    return;
                 }
 
                 if(result != null)result.close();
@@ -297,6 +345,8 @@
     <title><%=title%></title>
     <style>
         *{box-sizing:border-box}
+        a{text-decoration:none;}
+        a:visited{color:inherit;}
         body{padding:0;margin:0;}
         body,td,th {font:14px/1.3 TimesNewRoman,Arial,Verdana,tahoma,Helvetica,sans-serif}
         ::-webkit-scrollbar-track{box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-border-radius:10px;border-radius:10px}
@@ -311,10 +361,12 @@
         .toolbar-button-block,.toolbar-input-block{display:inline-block;}
         .toolbar-input-block{height:38px;line-height:36px;}
         .toolbar-input-label{color:#fff;background-color:#5b5b5b;display:inline-block;height:38px;padding:0 4px;}
-        .toolbar-input-block .toolbar-input{width:300px;height:36px;margin:0 8px;}
+        .toolbar-input-block .toolbar-input{width:280px;height:36px;margin:0 8px;}
         .toolbar-input-block.search-input{padding:0 4px;position:relative}
-        .search-result-summary{position:absolute;right:16px;top:2px;font-size:13px;color:#999;}
+        .search-result-summary{position:absolute;right:40px;top:2px;font-size:13px;color:#999;}
+        .delete-all-input{position:absolute;right:16px;top:12px;width:16px;height:16px;background: #bbb;color:#fff;font-weight:600;border:none;border-radius:50%;padding:0;font-size:12px}
         .change-db{background-color:#1588d9;border-color:#46b8da;color:#fff;margin-bottom:0;font-size:14px;font-weight:400;}
+        a.change-db{color:#fff;}
         .change-db:hover{background-color:#337ab7}
         .hide-tab,.hide-tab-already{background-color:#77d26d;color:#fff;}
         .hide-tab:hover,.hide-tab-already:hover{background-color:#49ab3f}
@@ -324,12 +376,15 @@
         .unset-config:hover{background-color:#0a8;}
         .connect-info{background-color:#eee;color:#292929}
         .connect-info:hover{background-color:#ccc;}
-        #connect_info:hover .connect-info-block{display:block;}
-        .connect-info-block{position:absolute;right:0;font-size:13px;background-color:#eee;padding-top:6px;display:none;}
-        .connect-info-block p{padding:6px 16px;margin:0;}
-        .connect-info-block p .config-field{display:inline-block;width:58px;text-align:right;}
-        .connect-info-block p .config-value{display:inline-block;color:#2a28d2;}
-        .connect-info-block p:hover{background-color:#ccc;}
+        .toggle-show{position:relative;}
+        .toggle-show:hover .toggle-show-info-block{display:block;}
+        .toggle-show-info-block{position:absolute;right:0;font-size:13px;background-color:#eee;padding-top:6px;display:none;}
+        .toggle-show-info-block a{color:#2a28d2}
+        .toggle-show-info-block p{padding:6px 16px;margin:0;white-space:nowrap}
+        .toggle-show-info-block p span{display:inline-block;vertical-align:top;}
+        .toggle-show-info-block p .config-field{text-align:right;min-width:50px}
+        .toggle-show-info-block p .config-value{color:#2a28d2;}
+        .toggle-show-info-block p:hover{background-color:#ccc;}
         .list-content{width:100%;margin:0 auto;padding:20px 0;}
         .table-name-title-block{padding:10px 0;}
         .table-name-title-block .table-name-title{margin:0;background-color:#f8f8f8;padding:0 4px;cursor:pointer;}
@@ -524,6 +579,7 @@
                             <label for="search_input" class="toolbar-input-label">输入表名检索：</label>
                             <input type="text" name="search_input" id="search_input" class="toolbar-input" placeholder="filter">
                             <span id="search_result_summary" class="search-result-summary">共<%=tableMap.size()%>个表</span>
+                            <button class="delete-all-input" id="delete_search_input">X</button>
                         </div>
                     </div>
                     <div class="absolute-block">
@@ -536,16 +592,21 @@
                         <div class="toolbar-button-block">
                             <a href="javascript:void(0);" class="btn btn-tight hide-tab" id="hide_tab">隐藏排序tab</a>
                         </div>
-                        <div class="toolbar-button-block">
-                            <a href="?config" class="btn btn-tight change-db">切换数据库</a>
+                        <div class="toolbar-button-block toggle-show">
+                            <a href="?config" class="btn btn-tight change-db" title="点击可以输入配置">切换数据库</a>
+                            <div class="toggle-show-info-block">
+                                <%for(String db : databases){%>
+                                <a href="<%=baseUrl+"?db="+db%>"><p><%=db%></p></a>
+                                <%}%>
+                            </div>
                         </div>
-                        <div class="toolbar-button-block" id="connect_info">
+                        <div class="toolbar-button-block toggle-show" id="connect_info">
                             <a href="javascript:void(0);" class="btn btn-tight connect-info">连接信息</a>
-                            <div class="connect-info-block">
-                                <p><span class="config-field">数据库：</span><span class="config-value"><% out.print(configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):"");%></span></p>
-                                <p><span class="config-field">用户：</span><span class="config-value"><% out.print(configMap.get("dbUser")!=null?configMap.get("dbUser"):"");%></span></p>
-                                <p><span class="config-field">主机：</span><span class="config-value"><% out.print(configMap.get("dbServer")!=null?configMap.get("dbServer"):"");%></span></p>
-                                <p><span class="config-field">端口：</span><span class="config-value"><% out.print(configMap.get("dbPort")!=null?configMap.get("dbPort"):"");%></span></p>
+                            <div class="toggle-show-info-block">
+                                <p><span class="config-field">数据库：</span><span class="config-value"><%=configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):""%></span></p>
+                                <p><span class="config-field">用户：</span><span class="config-value"><%=configMap.get("dbUser")!=null?configMap.get("dbUser"):""%></span></p>
+                                <p><span class="config-field">主机：</span><span class="config-value"><%=configMap.get("dbServer")!=null?configMap.get("dbServer"):""%></span></p>
+                                <p><span class="config-field">端口：</span><span class="config-value"><%=configMap.get("dbPort")!=null?configMap.get("dbPort"):""%></span></p>
                                 <p><span class="config-field">表总数：</span><span class="config-value"><%=tableMap.size()%></span></p>
                             </div>
                         </div>
@@ -556,11 +617,14 @@
             <div class="fix-category" id="fix_category">
                 <div class="category-content-block">
                     <ul>
-                        <%int j = 1;for(String tableName : tableMap.keySet()){%>
+                        <%for(int i = 1, size = tableList.size(); i<size; i++){
+                            Table table = tableList.get(i);
+                            Table tableSorted = tableList.get(i);
+                        %>
                         <li>
-                            <a href="#<%=tableName%>"><%=String.format("%0"+(tableMap.size() + "").length() + "d", j) + "." + tableName%><span class="category-table-name"><%=tableMap.get(tableName).get(0).tableComment%></span></a>
+                            <a href="#<%=table.tableName%>"><%=String.format("%0"+(size + "").length() + "d", i) + "." + table.tableName%><span class="category-table-name"><%=table.tableComment%></span></a>
                         </li>
-                        <% j++;}%>
+                        <%}%>
                     </ul>
                 </div>
             </div>
@@ -570,15 +634,18 @@
             <div class="list-content">
                 <h2 style="text-align:center;"><%=title%></h2>
                 <div class="table-list" id="table_list">
-                    <%j = 1;for(String tableName : tableMap.keySet()) {%>
+                    <%for(int i = 1, size = tableList.size(); i<size; i++){
+                        Table table = tableList.get(i);
+                        Table tableSorted = tableList.get(i);
+                    %>
                     <div class="table-one-block">
                         <div class="table-name-title-block">
                             <h3 class="table-name-title lap-on">
-                                <a id="<%=tableName%>" class="table-name-anchor">
+                                <a id="<%=table.tableName%>" class="table-name-anchor">
                                     <span class="lap-icon">-</span>
-                                    <span class="db-table-index"><%=String.format("%0"+(tableMap.size() + "").length() + "d", j)%>.</span>
-                                    <span class="db-table-name"><%=tableName%></span>
-                                    <span class="db-table-comment"><%=tableMap.get(tableName).get(0).tableComment%></span>
+                                    <span class="db-table-index"><%=String.format("%0"+(tableMap.size() + "").length() + "d", i)%>.</span>
+                                    <span class="db-table-name"><%=table.tableName%></span>
+                                    <span class="db-table-comment"><%=table.tableComment%></span>
                                 </a>
                             </h3>
                         </div>
@@ -594,18 +661,20 @@
                                 </tr>
                                 </thead>
                                 <tbody>
-                                <%for(int k = 0, size = tableMap.get(tableName).size();k<size;k++){%>
+                                <%for(int k = 0, columnSize = table.columns.size(); k<columnSize; k++){
+                                    Column column = table.columns.get(k);
+                                %>
                                 <tr>
                                     <td class="column-index"><%=String.format("%0"+ (size+"").length() + "d", k+1)%></td>
-                                    <td class="column-field"><%=tableMap.get(tableName).get(k).columnName%></td>
-                                    <td class="column-data-type"><%=tableMap.get(tableName).get(k).columnType%></td>
-                                    <td class="column-comment"><%=tableMap.get(tableName).get(k).columnComment%></td>
-                                    <td class="column-can-be-null"><%=tableMap.get(tableName).get(k).isNullable%></td>
-                                    <td class="column-default-value"><%=tableMap.get(tableName).get(k).columnDefault!=null?tableMap.get(tableName).get(k).columnDefault:""%></td>
-                                    <td class="column-auto-increment"><%=("auto_increment".equals(tableMap.get(tableName).get(k).extra) ? "YES" : "")%></td>
-                                    <td class="column-primary-key"><%=("PRI".equals(tableMap.get(tableName).get(k).columnKey) ? "YES" : "")%></td>
-                                    <td class="column-character-set-name"><%=tableMap.get(tableName).get(k).characterSetName!=null?tableMap.get(tableName).get(k).characterSetName:""%></td>
-                                    <td class="column-collation-name"><%=tableMap.get(tableName).get(k).collationName!=null?tableMap.get(tableName).get(k).collationName:""%></td>
+                                    <td class="column-field"><%=column.columnName%></td>
+                                    <td class="column-data-type"><%=column.columnType%></td>
+                                    <td class="column-comment"><%=column.columnComment%></td>
+                                    <td class="column-can-be-null"><%=column.isNullable%></td>
+                                    <td class="column-default-value"><%=column.columnDefault!=null?column.columnDefault:""%></td>
+                                    <td class="column-auto-increment"><%=("auto_increment".equals(column.extra) ? "YES" : "")%></td>
+                                    <td class="column-primary-key"><%=("PRI".equals(column.columnKey) ? "YES" : "")%></td>
+                                    <td class="column-character-set-name"><%=column.characterSetName!=null?column.characterSetName:""%></td>
+                                    <td class="column-collation-name"><%=column.collationName!=null?column.collationName:""%></td>
                                 </tr>
                                 <% }%>
                                 </tbody>
@@ -617,25 +686,27 @@
                                 </tr>
                                 </thead>
                                 <tbody>
-                                <%for(int k = 0, size = tableSortedMap.get(tableName).size();k<size;k++){%>
+                                <%for(int k = 0, columnSize = table.columns.size(); k<columnSize; k++){
+                                    Column column = tableSorted.columns.get(k);
+                                %>
                                 <tr>
                                     <td class="column-index"><%=String.format("%0"+ (size+"").length() + "d", k+1)%></td>
-                                    <td class="column-field"><%=tableSortedMap.get(tableName).get(k).columnName%></td>
-                                    <td class="column-data-type"><%=tableSortedMap.get(tableName).get(k).columnType%></td>
-                                    <td class="column-comment"><%=tableSortedMap.get(tableName).get(k).columnComment%></td>
-                                    <td class="column-can-be-null"><%=tableSortedMap.get(tableName).get(k).isNullable%></td>
-                                    <td class="column-default-value"><%=tableSortedMap.get(tableName).get(k).columnDefault!=null?tableSortedMap.get(tableName).get(k).columnDefault:""%></td>
-                                    <td class="column-auto-increment"><%=("auto_increment".equals(tableSortedMap.get(tableName).get(k).extra) ? "YES" : "")%></td>
-                                    <td class="column-primary-key"><%=("PRI".equals(tableSortedMap.get(tableName).get(k).columnKey) ? "YES" : "")%></td>
-                                    <td class="column-character-set-name"><%=tableSortedMap.get(tableName).get(k).characterSetName!=null?tableSortedMap.get(tableName).get(k).characterSetName:""%></td>
-                                    <td class="column-collation-name"><%=tableSortedMap.get(tableName).get(k).collationName!=null?tableSortedMap.get(tableName).get(k).collationName:""%></td>
+                                    <td class="column-field"><%=column.columnName%></td>
+                                    <td class="column-data-type"><%=column.columnType%></td>
+                                    <td class="column-comment"><%=column.columnComment%></td>
+                                    <td class="column-can-be-null"><%=column.isNullable%></td>
+                                    <td class="column-default-value"><%=column.columnDefault!=null?column.columnDefault:""%></td>
+                                    <td class="column-auto-increment"><%=("auto_increment".equals(column.extra) ? "YES" : "")%></td>
+                                    <td class="column-primary-key"><%=("PRI".equals(column.columnKey) ? "YES" : "")%></td>
+                                    <td class="column-character-set-name"><%=column.characterSetName!=null?column.characterSetName:""%></td>
+                                    <td class="column-collation-name"><%=column.collationName!=null?column.collationName:""%></td>
                                 </tr>
                                 <% }%>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <% j++;}%>
+                    <%}%>
                 </div>
             </div>
             <div class="right-bar-block">
@@ -825,6 +896,19 @@
                         }
                     });
                 };
+                /**
+                 * @doc 删除输入
+                 * @author fanggang
+                 * @time 2016-03-20 21:51:46
+                 */
+                var $delete_search_input = document.getElementById('delete_search_input');
+                $delete_search_input.onclick = function(){
+                    this.parentNode.children[1].value = '';
+                    //原生js主动触发事件
+                    var evt = document.createEvent('MouseEvent');
+                    evt.initEvent("keyup",true,true);
+                    document.getElementById("search_input").dispatchEvent(evt);
+                };
                 //回到顶部功能
                 goToTop('go_to_top', false);
 
@@ -1000,7 +1084,7 @@
             /**
              * 如果滚动幅度超过半屏浏览器则淡出“回到顶部按钮”
              * @author 方刚
-             * @times
+             * @time 2014-10-28 17:51:55
              */
             var $go_to_top = document.getElementById('go_to_top');
             var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
@@ -1028,6 +1112,17 @@
             seeSize['height'] = winHeight;
             return seeSize;
         }
+
+        $.ajax({
+            url: "<%=baseUrl%>?json",//请求地址
+            type: "POST",
+            data: {},
+            dataType: "json",
+            success: function (response, xml) {},
+            fail: function (status) {
+                alert('出现问题：' + status);
+            }
+        });
     </script>
 </div>
 </body>
