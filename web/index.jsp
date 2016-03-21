@@ -904,6 +904,7 @@
                  */
                 var $delete_search_input = document.getElementById('delete_search_input');
                 $delete_search_input.onclick = function(){
+                    if(this.value == '') return false;
                     this.parentNode.children[1].value = '';
                     //原生js主动触发事件
                     var evt = document.createEvent('MouseEvent');
