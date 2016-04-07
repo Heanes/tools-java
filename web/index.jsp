@@ -29,12 +29,13 @@
         public String collationName;    //字段排序规则
         public Long   ordinalPosition;  // 字段在表中序号
         public Long   autoIncrement;    // 表自增值
-        public String createTime;       // 创建时间
     }
     class Table{
         public String tableName;
         public String tableComment;
         public int    index;
+        public String createTime;       // 创建时间
+        public String updateTime;       // 更新时间
         public List<Column> columns;
     }
     String path = request.getContextPath();
@@ -96,6 +97,7 @@
     List<String> databases = new ArrayList<>();
     Map<String, List<Column>> tableMap = new HashMap<String, List<Column>>();
     Map<String, List<Column>> tableSortedMap = new HashMap<String, List<Column>>();
+    Map<String, Table> tableInfoMap = new HashMap<>();
 
     List<Table> tableList = new ArrayList<Table>();
     List<Table> tableSortedList = new ArrayList<Table>();
@@ -170,10 +172,10 @@
                         databases.add(resultSet.getString("database"));
                     }
                 }
-                System.out.println(JSON.toJSONString(databases));
+                //System.out.println(JSON.toJSONString(databases));
 
                 sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
-                        + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
+                        + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME, UPDATE_TIME"
                         + " FROM INFORMATION_SCHEMA.TABLES AS T"
                         + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
                         + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDatabase") + "' ORDER BY T.TABLE_NAME, ORDINAL_POSITION";
@@ -195,7 +197,6 @@
                     column.collationName     = result.getString("COLLATION_NAME");
                     column.ordinalPosition   = result.getLong("ORDINAL_POSITION");
                     column.autoIncrement     = result.getLong("AUTO_INCREMENT");
-                    column.createTime        = result.getString("CREATE_TIME");
                     if(tableMap.get(tableName) != null && tableMap.get(tableName).size() > 0){
                         tableMap.get(tableName).add(column);
                     }else{
@@ -203,13 +204,28 @@
                         tableGroupList.add(column);
                         tableMap.put(tableName, tableGroupList);
                     }
+                    if(tableInfoMap.get(tableName) == null){
+                        Table table = new Table();
+                        table.tableName = tableName;
+                        table.tableComment = result.getString("TABLE_COMMENT");
+                        table.createTime = result.getString("CREATE_TIME").substring(0, result.getString("CREATE_TIME").length() - 2);
+                        String updateTime = result.getString("UPDATE_TIME");
+                        if(updateTime != null && !"".equals(updateTime) && updateTime.length() >= 2) {
+                            table.updateTime = updateTime.substring(0, updateTime.length() - 2);
+                        }else{
+                            table.updateTime = "";
+                        }
+                        tableInfoMap.put(tableName, table);
+                    }
                 }
 
                 int i = 0;
                 for(String tableName : tableMap.keySet()){
                     Table table = new Table();
                     table.tableName = tableName;
-                    table.tableComment = tableMap.get(tableName).get(0).tableComment;
+                    table.tableComment = tableInfoMap.get(tableName).tableComment;
+                    table.createTime = tableInfoMap.get(tableName).createTime;
+                    table.updateTime = tableInfoMap.get(tableName).updateTime;
                     table.columns = tableMap.get(tableName);
                     table.index = i;
                     tableList.add(table);
@@ -217,7 +233,7 @@
                 }
 
                 sql = "SELECT T.TABLE_NAME AS TABLE_NAME, TABLE_COMMENT, COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT, IS_NULLABLE, COLUMN_KEY, COLUMN_KEY, EXTRA, COLUMN_DEFAULT,"
-                        + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME"
+                        + " CHARACTER_SET_NAME, TABLE_COLLATION, COLLATION_NAME, ORDINAL_POSITION, AUTO_INCREMENT, CREATE_TIME, UPDATE_TIME"
                         + " FROM INFORMATION_SCHEMA.TABLES AS T"
                         + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
                         + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDatabase") + "' ORDER BY T.TABLE_NAME, COLUMN_NAME";
@@ -239,7 +255,6 @@
                     column.collationName     = result.getString("COLLATION_NAME");
                     column.ordinalPosition   = result.getLong("ORDINAL_POSITION");
                     column.autoIncrement     = result.getLong("AUTO_INCREMENT");
-                    column.createTime        = result.getString("CREATE_TIME");
                     if(tableSortedMap.get(tableName) != null && tableSortedMap.get(tableName).size() > 0){
                         tableSortedMap.get(tableName).add(column);
                     }else{
@@ -253,21 +268,23 @@
                 for(String tableName : tableSortedMap.keySet()){
                     Table table = new Table();
                     table.tableName = tableName;
-                    table.tableComment = tableSortedMap.get(tableName).get(0).tableComment;
+                    table.tableComment = tableInfoMap.get(tableName).tableComment;
+                    table.createTime = tableInfoMap.get(tableName).createTime;
+                    table.updateTime = tableInfoMap.get(tableName).updateTime;
                     table.columns = tableSortedMap.get(tableName);
                     table.index = i;
                     tableSortedList.add(table);
                     i++;
                 }
 
+                if(result != null)result.close();
+                if(stmt != null)stmt.close();
+                if(conn != null)conn.close();
+
                 if("json".equals(queryString)){
                     out.print(JSON.toJSONString(tableList));
                     return;
                 }
-
-                if(result != null)result.close();
-                if(stmt != null)stmt.close();
-                if(conn != null)conn.close();
             } catch (Exception e) {
                 e.printStackTrace();
 
@@ -392,13 +409,17 @@
         .table-name-title-block .table-name-title.lap-off{border-bottom:1px solid #ddd;}
         .table-name-title-block .table-name-title .lap-icon{padding:0 10px;}
         .table-name-title-block .table-name-title .table-name-anchor{display:block;padding:10px 0;}
+        .table-one-content{position:relative;}
         .ul-sort-title{margin:0 0 -1px;padding:0;font-size:0;z-index:3;}
         ul.ul-sort-title,ul.ul-sort-title li{list-style:none;}
         .ul-sort-title li{display:inline-block;background:#fff;padding:10px 20px;border:1px solid #ddd;border-right:0;color:#333;cursor:pointer;font-size:13px;}
         .ul-sort-title li.active{background:#f0f0f0;border-bottom-color:#f0f0f0;}
         .ul-sort-title li:hover{background:#1588d9;border:1px solid #aaa;color:#fff;}
         .ul-sort-title li:last-child{border-right:1px solid #ddd;}
-        .table-list{_width:2000px;margin:0 auto;}
+        .table-other-info{position:absolute;right:4px;top:0;color:#666;font-size:12px;}
+        .table-other-info dt,.table-other-info dd{margin:0;padding:0;display:inline;}
+        .table-other-info dt{margin-left:4px;}
+        .table-list{margin:0 auto;}
         table{border-collapse:collapse;}
         table caption{text-align:left;background-color:LightGreen;line-height:2em;font-size:14px;font-weight:bold;border:1px solid #985454;padding:10px;}
         table th{text-align:left;font-weight:bold;height:26px;line-height:25px;font-size:13px;border:1px solid #ddd;background:#f0f0f0;padding:5px;}
@@ -425,8 +446,9 @@
         .fix-category ul li a:hover{color:#fff;}
         .fix-category ul li .category-table-name{display:none;padding: 5px 0 5px 22px;color:#1a407b;text-decoration:none;word-break:break-all;font-size:13px;}
         .fix-category ul li:hover .category-table-name{display:block;color:#fff;}
+        .fix-category-handle-bar{z-index:100;}
         .fix-category-handle-bar-off .lap-ul{left:0}
-        .lap-ul{display:inline-block;width:12px;height:35px;background:rgba(12,137,42,0.43);border-bottom-right-radius:5px;border-top-right-radius:5px;position:fixed;top:50%;left:300px;cursor:pointer;border:1px solid rgba(31,199,58,0.43);font-size:12px;font-weight:normal;line-height:35px;text-align:center;}
+        .lap-ul{display:inline-block;width:12px;height:35px;background:rgba(12,137,42,0.43);border-bottom-right-radius:5px;border-top-right-radius:5px;position:fixed;top:50%;left:300px;cursor:pointer;border:1px solid rgba(31,199,58,0.43);font-size:12px;font-weight:normal;line-height:35px;text-align:center;z-index:100;}
         .fix-category::-webkit-scrollbar-track{-webkit-box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-border-radius:10px;border-radius:10px}
         .fix-category::-webkit-scrollbar{width:6px;height:5px}
         .fix-category::-webkit-scrollbar-thumb{-webkit-border-radius:10px;border-radius:10px;background:rgba(231,178,13,0.31);-webkit-box-shadow:inset 0 0 6px rgba(231,178,13,0.31)}
@@ -655,6 +677,14 @@
                                 <li class="active"><span>自然结构</span></li>
                                 <li><span>字段排序</span></li>
                             </ul>
+                            <dl class="table-other-info">
+                                <dt>创建于：</dt>
+                                <dd><%=table.createTime%></dd>
+                                <%if(table.updateTime != null && !"".equals(table.updateTime)){%>
+                                <dt>更新于：</dt>
+                                <dd><%=table.createTime%></dd>
+                                <%}%>
+                            </dl>
                             <table>
                                 <thead>
                                 <tr>
@@ -833,6 +863,7 @@
                 };
                 // Tab切换
                 var ul_arr = table_list.getElementsByTagName('ul');
+                var dl_arr = table_list.getElementsByTagName('dl');
                 for (i = 0, ul_arr_length = ul_arr.length; i < ul_arr_length; i++) {
                     var li_arr = ul_arr[i].getElementsByTagName('li');
                     for(var j = 0;j<li_arr.length;j++){
@@ -863,6 +894,7 @@
                     if(this.className == 'btn btn-tight hide-tab-already'){
                         for (i = 0, ul_arr_length = ul_arr.length; i < ul_arr_length; i++) {
                             ul_arr[i].style.display = 'block';
+                            dl_arr[i].style.display = 'block';
                         }
                         this.className = 'btn btn-tight hide-tab';
                         this.innerHTML = '隐藏排序tab';
@@ -871,6 +903,7 @@
                     if(this.className == 'btn btn-tight hide-tab'){
                         for (i = 0, ul_arr_length = ul_arr.length; i < ul_arr_length; i++) {
                             ul_arr[i].style.display = 'none';
+                            dl_arr[i].style.display = 'none';
                         }
                         this.className = 'btn btn-tight hide-tab-already';
                         this.innerHTML = '显示排序tab';
