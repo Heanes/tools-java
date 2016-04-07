@@ -359,6 +359,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
     <meta name="renderer" content="webkit"/>
     <meta name="author" content="Heanes heanes.com email(heanes@163.com)"/>
+    <link rel="shortcut icon" href="<%=basePath%>/favicon.ico"/>
+    <link rel="bookmark" href="<%=basePath%>/favicon.ico"/>
     <title><%=title%></title>
     <style>
         *{box-sizing:border-box}
