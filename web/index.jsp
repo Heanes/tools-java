@@ -88,11 +88,11 @@
     Map<String, String> configMap = new HashMap<String, String>();
     Map<String, String> configMapTemp = new HashMap<String, String>();
     configMapTemp = configMap;
-    configMap.put("dbServer",   "localhost");
-    configMap.put("dbPort",     "3307");
-    configMap.put("dbDatabase", "heanes.com");
-    configMap.put("dbUser",     "root");
-    configMap.put("dbPassword", "123456");
+    configMap.put("dbServer",   "192.168.1.160");
+    configMap.put("dbPort",     "3306");
+    configMap.put("dbDatabase", "tmc");
+    configMap.put("dbUser",     "meixiansong_tms_rw");
+    configMap.put("dbPassword", "meixiansong");
 
     List<String> databases = new ArrayList<>();
     Map<String, List<Column>> tableMap = new HashMap<String, List<Column>>();
