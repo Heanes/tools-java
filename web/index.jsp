@@ -40,7 +40,7 @@
     }
     String path = request.getContextPath();
     String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path;
-    String baseUrl = basePath + request.getContextPath() + request.getServletPath();
+    String baseUrl = basePath + request.getServletPath();
 
     Boolean isSetSession;
     Boolean isSetCookie = false;
