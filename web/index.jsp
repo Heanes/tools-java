@@ -94,6 +94,31 @@
     configMap.put("dbUser",     "web_user_r");
     configMap.put("dbPassword", "web_user_r");
 
+    //1.2 若有Cookie
+    if(isSetCookie){
+        configMap.put("dbServer",     cookieMap.get("_dbServer"));
+        configMap.put("dbPort",       cookieMap.get("_dbPort"));
+        configMap.put("dbDatabase",   cookieMap.get("_dbDatabase"));
+        configMap.put("dbUser",       cookieMap.get("_dbUser"));
+        configMap.put("dbPassword",   cookieMap.get("_dbPassword"));
+    }
+    //1.3 若有Session，则根据配置查看数据字典页
+    if(isSetSession){
+        configMap.put("dbServer",     sessionMap.get("_dbServer"));
+        configMap.put("dbPort",       sessionMap.get("_dbPort"));
+        configMap.put("dbDatabase",   sessionMap.get("_dbDatabase"));
+        configMap.put("dbUser",       sessionMap.get("_dbUser"));
+        configMap.put("dbPassword",   sessionMap.get("_dbPassword"));
+    }
+    // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入Session或Cookie
+    if(isSetGet){
+        configMap.put("dbServer",     getMap.get("_dbServer")!=null ? getMap.get("_dbServer"): configMap.get("dbServer"));
+        configMap.put("dbPort",       getMap.get("_dbPort")!=null ? getMap.get("_dbPort"): configMap.get("dbPort"));
+        configMap.put("dbDatabase",   getMap.get("_dbDatabase")!=null ? getMap.get("_dbDatabase"): configMap.get("dbDatabase"));
+        configMap.put("dbUser",       getMap.get("_dbUser")!=null ? getMap.get("_dbUser"): configMap.get("dbUser"));
+        configMap.put("dbPassword",   getMap.get("_dbPassword")!=null ? getMap.get("_dbPassword"): configMap.get("dbPassword"));
+    }
+
     List<String> databases = new ArrayList<>();
     Map<String, List<Column>> tableMap = new HashMap<String, List<Column>>();
     Map<String, List<Column>> tableSortedMap = new HashMap<String, List<Column>>();
@@ -112,30 +137,7 @@
             response.sendRedirect(baseUrl + "?config");
             return;
         }else{
-            //1.2 若有Cookie
-            if(isSetCookie){
-                configMap.put("dbServer",     cookieMap.get("_dbServer"));
-                configMap.put("dbPort",       cookieMap.get("_dbPort"));
-                configMap.put("dbDatabase",   cookieMap.get("_dbDatabase"));
-                configMap.put("dbUser",       cookieMap.get("_dbUser"));
-                configMap.put("dbPassword",   cookieMap.get("_dbPassword"));
-            }
-            //1.3 若有Session，则根据配置查看数据字典页
-            if(isSetSession){
-                configMap.put("dbServer",     sessionMap.get("_dbServer"));
-                configMap.put("dbPort",       sessionMap.get("_dbPort"));
-                configMap.put("dbDatabase",   sessionMap.get("_dbDatabase"));
-                configMap.put("dbUser",       sessionMap.get("_dbUser"));
-                configMap.put("dbPassword",   sessionMap.get("_dbPassword"));
-            }
-            // 1.3 也可以在url中指定配置，但URL只是暂时配置，不存入Session或Cookie
-            if(isSetGet){
-                configMap.put("dbServer",     getMap.get("_dbServer")!=null ? getMap.get("_dbServer"): configMap.get("dbServer"));
-                configMap.put("dbPort",       getMap.get("_dbPort")!=null ? getMap.get("_dbPort"): configMap.get("dbPort"));
-                configMap.put("dbDatabase",   getMap.get("_dbDatabase")!=null ? getMap.get("_dbDatabase"): configMap.get("dbDatabase"));
-                configMap.put("dbUser",       getMap.get("_dbUser")!=null ? getMap.get("_dbUser"): configMap.get("dbUser"));
-                configMap.put("dbPassword",   getMap.get("_dbPassword")!=null ? getMap.get("_dbPassword"): configMap.get("dbPassword"));
-            }
+
             try {
                 // 3.原生java 连接数据库并执行sql查询
                 Class.forName("com.mysql.jdbc.Driver");//.newInstance();
