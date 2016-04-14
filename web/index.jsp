@@ -182,6 +182,7 @@
                         + " JOIN INFORMATION_SCHEMA.COLUMNS AS C ON T.TABLE_SCHEMA = C.TABLE_SCHEMA AND C.TABLE_NAME = T.TABLE_NAME"
                         + " WHERE T.TABLE_SCHEMA = '" + configMap.get("dbDatabase") + "' ORDER BY T.TABLE_NAME, ORDINAL_POSITION";
                 ResultSet result = stmt.executeQuery(sql);
+                List<String> tableListTemp = new ArrayList<>();
                 while(result.next()){
                     String tableName = result.getString("TABLE_NAME");
                     Column column = new Column();
@@ -199,6 +200,12 @@
                     column.collationName     = result.getString("COLLATION_NAME");
                     column.ordinalPosition   = result.getLong("ORDINAL_POSITION");
                     column.autoIncrement     = result.getLong("AUTO_INCREMENT");
+
+                    if(!tableListTemp.contains(tableName)){
+                        tableListTemp.add(tableName);
+                        //System.out.println("truncate `" + tableName + "`;");
+                    }
+
                     if(tableMap.get(tableName) != null && tableMap.get(tableName).size() > 0){
                         tableMap.get(tableName).add(column);
                     }else{
@@ -222,7 +229,7 @@
                 }
 
                 int i = 0;
-                for(String tableName : tableMap.keySet()){
+                for(String tableName : tableListTemp){
                     Table table = new Table();
                     table.tableName = tableName;
                     table.tableComment = tableInfoMap.get(tableName).tableComment;
@@ -267,7 +274,7 @@
                 }
 
                 i = 0;
-                for(String tableName : tableSortedMap.keySet()){
+                for(String tableName : tableListTemp){
                     Table table = new Table();
                     table.tableName = tableName;
                     table.tableComment = tableInfoMap.get(tableName).tableComment;
