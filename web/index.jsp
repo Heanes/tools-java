@@ -88,11 +88,11 @@
     Map<String, String> configMap = new HashMap<String, String>();
     Map<String, String> configMapTemp = new HashMap<String, String>();
     configMapTemp = configMap;
-    configMap.put("dbServer",   "192.168.1.160");
+    configMap.put("dbServer",   "localhost");
     configMap.put("dbPort",     "3306");
-    configMap.put("dbDatabase", "tmc");
-    configMap.put("dbUser",     "meixiansong_tms_rw");
-    configMap.put("dbPassword", "meixiansong");
+    configMap.put("dbDatabase", "heanes.com");
+    configMap.put("dbUser",     "web_user_r");
+    configMap.put("dbPassword", "web_user_r");
 
     List<String> databases = new ArrayList<>();
     Map<String, List<Column>> tableMap = new HashMap<String, List<Column>>();
@@ -398,7 +398,7 @@
         .connect-info:hover{background-color:#ccc;}
         .toggle-show{position:relative;}
         .toggle-show:hover .toggle-show-info-block{display:block;}
-        .toggle-show-info-block{position:absolute;right:0;font-size:13px;background-color:#eee;padding-top:6px;display:none;}
+        .toggle-show-info-block{position:absolute;right:0;font-size:13px;background-color:#eee;padding-top:6px;display:none;overflow-y:auto;max-height:400px;}
         .toggle-show-info-block a{color:#2a28d2}
         .toggle-show-info-block p{padding:6px 16px;margin:0;white-space:nowrap}
         .toggle-show-info-block p span{display:inline-block;vertical-align:top;}
