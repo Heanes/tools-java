@@ -392,7 +392,7 @@
         .toolbar-input-block .toolbar-input{width:280px;height:36px;margin:0 8px;}
         .toolbar-input-block.search-input{padding:0 4px;position:relative}
         .search-result-summary{position:absolute;right:40px;top:2px;font-size:13px;color:#999;}
-        .delete-all-input{position:absolute;right:16px;top:12px;width:16px;height:16px;background: #bbb;color:#fff;font-weight:600;border:none;border-radius:50%;padding:0;font-size:12px}
+        .delete-all-input{position:absolute;right:16px;top:12px;width:16px;height:16px;background: #bbb;color:#fff;font-weight:600;border:none;border-radius:50%;padding:0;font-size:12px;cursor:pointer;}
         .delete-all-input:hover{background-color:#e69691}
         .change-db{background-color:#1588d9;border-color:#46b8da;color:#fff;margin-bottom:0;font-size:14px;font-weight:400;}
         a.change-db{color:#fff;}
@@ -611,7 +611,7 @@
                     <div class="handle-block">
                         <div class="toolbar-input-block search-input">
                             <label for="search_input" class="toolbar-input-label">输入表名检索：</label>
-                            <input type="text" name="search_input" id="search_input" class="toolbar-input" placeholder="filter">
+                            <input type="text" name="search_input" id="search_input" class="toolbar-input" placeholder="search (table name only)">
                             <span id="search_result_summary" class="search-result-summary">共<%=tableMap.size()%>个表</span>
                             <button class="delete-all-input" id="delete_search_input">X</button>
                         </div>
@@ -947,9 +947,10 @@
                  * @time 2016-03-20 21:51:46
                  */
                 var $delete_search_input = document.getElementById('delete_search_input');
+                var $searchInput = document.getElementById('search_input');
                 $delete_search_input.onclick = function(){
-                    if(this.value == '') return false;
-                    this.parentNode.children[1].value = '';
+                    if($searchInput.value == '') return false;
+                    $searchInput.value = '';
                     //原生js主动触发事件
                     var evt = document.createEvent('MouseEvent');
                     evt.initEvent("keyup",true,true);
