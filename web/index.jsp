@@ -388,6 +388,7 @@
         ::-webkit-scrollbar-track{box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-border-radius:10px;border-radius:10px}
         ::-webkit-scrollbar{width:6px;height:5px}
         ::-webkit-scrollbar-thumb{-webkit-border-radius:10px;border-radius:10px;background:rgba(0,0,0,0.39);}
+        pre{padding:0;margin:0;}
         .w-wrap{width:1065px;margin:0 auto;}
         .fixed{position:fixed;}
         .toolbar-block{width:100%;top:0;right:0;height:38px;background-color:rgba(31,31,31,0.73);-webkit-box-shadow:0 3px 6px rgba(0,0,0,.2);-moz-box-shadow:0 3px 6px rgba(0,0,0,.2);box-shadow:0 3px 6px rgba(0,0,0,.2);z-index:100;}
