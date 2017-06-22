@@ -8,11 +8,9 @@
 <%@ page import="java.sql.DriverManager"%>
 <%@ page import="java.sql.ResultSet"%>
 <%@ page import="java.sql.Statement" %>
-<%@ page import="java.util.ArrayList" %>
-<%@ page import="java.util.HashMap" %>
-<%@ page import="java.util.List" %>
-<%@ page import="java.util.Map" %>
 <%@ page import="com.alibaba.fastjson.JSON" %>
+<%@ page import="java.util.*" %>
+<%@ page import="java.text.SimpleDateFormat" %>
 <%
     class Column{
         public String tableName;        //表名
@@ -130,6 +128,12 @@
 
     String title = "数据字典";
     String queryString = request.getQueryString();
+
+    // 获取当前时间
+    final String YMDHMS = "yyyy-MM-dd HH:mm:ss";
+    String dateFormat = YMDHMS;
+    SimpleDateFormat f = new SimpleDateFormat(dateFormat);
+    String getCurrentTimeStr = f.format(System.currentTimeMillis());
 
     if(!"config".equals(queryString) && !"postConfig".equals(queryString) && !"mysqlConnectError".equals(queryString) && !"deleteSuccess".equals(queryString)){
         //1，检测session或cookie中是否存有数据库配置
@@ -420,7 +424,7 @@
         .toggle-show-info-block a{color:#2a28d2}
         .toggle-show-info-block p{padding:6px 16px;margin:0;white-space:nowrap}
         .toggle-show-info-block p span{display:inline-block;vertical-align:top;}
-        .toggle-show-info-block p .config-field{text-align:right;min-width:50px}
+        .toggle-show-info-block p .config-field{text-align:right;min-width:70px}
         .toggle-show-info-block p .config-value{color:#2a28d2;}
         .toggle-show-info-block p:hover{background-color:#ccc;}
         .list-content{width:100%;margin:0 auto;padding:20px 0;}
@@ -647,6 +651,7 @@
                         <div class="toolbar-button-block toggle-show" id="connect_info">
                             <a href="javascript:void(0);" class="btn btn-tight connect-info">连接信息</a>
                             <div class="toggle-show-info-block">
+                                <p><span class="config-field">刷新时间：</span><span class="config-value"><%=getCurrentTimeStr%></span></p>
                                 <p><span class="config-field">数据库：</span><span class="config-value"><%=configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):""%></span></p>
                                 <p><span class="config-field">用户：</span><span class="config-value"><%=configMap.get("dbUser")!=null?configMap.get("dbUser"):""%></span></p>
                                 <p><span class="config-field">主机：</span><span class="config-value"><%=configMap.get("dbServer")!=null?configMap.get("dbServer"):""%></span></p>
