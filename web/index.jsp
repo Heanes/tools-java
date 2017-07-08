@@ -12,10 +12,58 @@
 <%@ page import="java.util.*" %>
 <%@ page import="java.text.SimpleDateFormat" %>
 <%
+    class StringUtils{
+        /**
+         * @doc 将单词首字母转为大写
+         * @param word String
+         * @return String
+         * @author fanggang
+         * @time 2017-07-07 19:06:39 周五
+         */
+        public String toUpperFirstLetter(String word) {
+            /*word = word.substring(0, 1).toUpperCase() + word.substring(1);
+            return word;*/
+            if(word == null || word.length() == 0){
+                return null;
+            }
+            char[] cs = word.toCharArray();
+            cs[0] -= 32;
+            return String.valueOf(cs);
+        }
+
+        /**
+         * @doc 将字符串转换为驼峰格式
+         * @param str String
+         * @return String
+         * @author Heanes
+         * @time 2017-07-07 20:06:23 周五
+         */
+        public String convertToCamelStyle(String str){
+            if(str == null || str.length() == 0){
+                return null;
+            }
+            String[] strArray = str.split("_");
+            List<String> wordList = new ArrayList<>();
+            for (int i = 0, length = strArray.length; i < length; i++) {
+                if(i == 0){
+                    wordList.add(strArray[i]);
+                }else{
+                    wordList.add(toUpperFirstLetter(strArray[i]));
+                }
+            }
+            StringBuffer wordsBuffer = new StringBuffer();
+            for(String word : wordList){
+                wordsBuffer.append(word);
+            }
+            return wordsBuffer.toString();
+        }
+    }
+
     class Column{
         public String tableName;        //表名
         public String tableComment;     //表注释
         public String columnName;       //字段名
+        public String columnNameCamelStyle;//字段名，驼峰形式
         public String columnType;       //字段类型
         public String columnComment;    //字段注释
         public String isNullable;       //是否可空
@@ -194,6 +242,7 @@
                     column.tableName         = tableName;
                     column.tableComment      = result.getString("TABLE_COMMENT");
                     column.columnName        = result.getString("COLUMN_NAME");
+                    column.columnNameCamelStyle = new StringUtils().convertToCamelStyle(result.getString("COLUMN_NAME"));
                     column.columnType        = result.getString("COLUMN_TYPE");
                     column.columnComment     = result.getString("COLUMN_COMMENT");
                     column.isNullable        = result.getString("IS_NULLABLE");
@@ -265,6 +314,7 @@
                     column.tableName         = tableName;
                     column.tableComment      = result.getString("TABLE_COMMENT");
                     column.columnName        = result.getString("COLUMN_NAME");
+                    column.columnNameCamelStyle = new StringUtils().convertToCamelStyle(result.getString("COLUMN_NAME"));
                     column.columnType        = result.getString("COLUMN_TYPE");
                     column.columnComment     = result.getString("COLUMN_COMMENT");
                     column.isNullable        = result.getString("IS_NULLABLE");
@@ -389,11 +439,12 @@
         a:visited{color:inherit;}
         body{padding:0;margin:0;}
         body,td,th {font:14px/1.3 TimesNewRoman,Arial,Verdana,tahoma,Helvetica,sans-serif}
+        dl{margin:0;padding:0;}
         ::-webkit-scrollbar-track{box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-box-shadow:inset 0 0 6px rgba(0,0,0,0.3);-webkit-border-radius:10px;border-radius:10px}
         ::-webkit-scrollbar{width:6px;height:5px}
         ::-webkit-scrollbar-thumb{-webkit-border-radius:10px;border-radius:10px;background:rgba(0,0,0,0.39);}
         pre{padding:0;margin:0;}
-        .w-wrap{width:1065px;margin:0 auto;}
+        .w-wrap{width:1265px;margin:0 auto;}
         .fixed{position:fixed;}
         .toolbar-block{width:100%;top:0;right:0;height:38px;background-color:rgba(31,31,31,0.73);-webkit-box-shadow:0 3px 6px rgba(0,0,0,.2);-moz-box-shadow:0 3px 6px rgba(0,0,0,.2);box-shadow:0 3px 6px rgba(0,0,0,.2);z-index:100;}
         .toolbar-block-placeholder{height:40px;width:100%;}
@@ -428,11 +479,12 @@
         .toggle-show-info-block p .config-value{color:#2a28d2;}
         .toggle-show-info-block p:hover{background-color:#ccc;}
         .list-content{width:100%;margin:0 auto;padding:20px 0;}
-        .table-name-title-block{padding:10px 0;}
+        .table-name-title-block{position:relative;padding:10px 0;}
         .table-name-title-block .table-name-title{margin:0;background-color:#f8f8f8;padding:0 4px;cursor:pointer;}
         .table-name-title-block .table-name-title.lap-off{border-bottom:1px solid #ddd;}
         .table-name-title-block .table-name-title .lap-icon{padding:0 10px;}
         .table-name-title-block .table-name-title .table-name-anchor{display:block;padding:10px 0;}
+        .table-name-title-block .table-other-info{top:50%;margin-top:-12px;}
         .table-one-content{position:relative;}
         .ul-sort-title{margin:0 0 -1px;padding:0;font-size:0;z-index:3;}
         ul.ul-sort-title,ul.ul-sort-title li{list-style:none;}
@@ -440,7 +492,7 @@
         .ul-sort-title li.active{background:#f0f0f0;border-bottom-color:#f0f0f0;}
         .ul-sort-title li:hover{background:#1588d9;border:1px solid #aaa;border-right:0;color:#fff;}
         .ul-sort-title li:last-child{border-right:1px solid #ddd;}
-        .table-other-info{position:absolute;right:4px;top:0;color:#666;font-size:12px;}
+        .table-other-info{position:absolute;right:4px;top:0;color:#666;font-size:12px;line-height:24px;}
         .table-other-info dt,.table-other-info dd{margin:0;padding:0;display:inline;}
         .table-other-info dt{margin-left:4px;}
         .table-list{margin:0 auto;}
@@ -449,6 +501,8 @@
         table th{text-align:left;font-weight:bold;height:26px;line-height:25px;font-size:13px;border:1px solid #ddd;background:#f0f0f0;padding:5px;}
         table td{height:25px;font-size:12px;border:1px solid #ddd;padding:5px;word-break:break-all;color:#333;}
         .db-table-name{padding:0 6px;}
+        table.table-info tbody tr:nth-child(2n){background-color:#fafaff;}
+        table.table-info tbody tr:hover{background-color:#f7f7f7;}
         .column-index{width:40px;}
         .column-field{width:200px;}
         .column-data-type{width:130px;}
@@ -512,7 +566,7 @@
         .data-form-block .tips .tips-p{padding:10px 14px;color:#555;font-size:13px;}
         .data-form-block .tips .tips-p.notice-important{background-color:#ffefef;border:1px solid #ffd2d2}
         /* 右下角 */
-        .right-bar-block{position:fixed;left:50%;bottom:245px;margin-left:532px;}
+        .right-bar-block{position:fixed;left:50%;bottom:245px;margin-left:632px;}
         .right-bar-block .go-to-top{width:20px;border:1px solid #ddd;text-align:center;cursor:pointer;display:none;font-size:13px;padding:6px 0;}
     </style>
 </head>
@@ -625,23 +679,23 @@
                     <div class="handle-block">
                         <div class="toolbar-input-block search-input">
                             <label for="search_input" class="toolbar-input-label">输入表名检索：</label>
-                            <input type="text" name="search_input" id="search_input" class="toolbar-input" placeholder="search (table name only)">
+                            <input type="text" name="search_input" id="search_input" class="toolbar-input" placeholder="search (table name only)" title="输入表名快速查找">
                             <span id="search_result_summary" class="search-result-summary">共<%=tableMap.size()%>个表</span>
                             <button class="delete-all-input" id="delete_search_input">X</button>
                         </div>
                     </div>
                     <div class="absolute-block">
                         <div class="toolbar-button-block">
-                            <a href="javascript:void(0);" class="btn btn-tight unset-config" id="unset_config">安全删除配置信息</a>
+                            <a href="javascript:void(0);" class="btn btn-tight unset-config" id="unset_config" title="清除cookie及session中保存的连接信息">安全删除配置信息</a>
                         </div>
                         <div class="toolbar-button-block">
-                            <a href="javascript:void(0);" class="btn btn-tight lap-table" id="lap_table">折叠内容</a>
+                            <a href="javascript:void(0);" class="btn btn-tight lap-table" id="lap_table" title="折叠字典列表，仅展示表名概览">折叠内容</a>
                         </div>
                         <div class="toolbar-button-block">
-                            <a href="javascript:void(0);" class="btn btn-tight hide-tab" id="hide_tab">隐藏排序tab</a>
+                            <a href="javascript:void(0);" class="btn btn-tight hide-tab" id="hide_tab" title="每个字典只显示一个table">隐藏排序tab</a>
                         </div>
                         <div class="toolbar-button-block toggle-show">
-                            <a href="?config" class="btn btn-tight change-db" title="点击可以输入配置">切换数据库</a>
+                            <a href="?config" class="btn btn-tight change-db" title="快速切换及重新填写配置切换连接">切换数据库</a>
                             <div class="toggle-show-info-block">
                                 <%for(String db : databases){%>
                                 <a href="<%=baseUrl+"?db="+db%>"><p><%=db%></p></a>
@@ -649,7 +703,7 @@
                             </div>
                         </div>
                         <div class="toolbar-button-block toggle-show" id="connect_info">
-                            <a href="javascript:void(0);" class="btn btn-tight connect-info">连接信息</a>
+                            <a href="javascript:void(0);" class="btn btn-tight connect-info" title="本次连接信息">连接信息</a>
                             <div class="toggle-show-info-block">
                                 <p><span class="config-field">刷新时间：</span><span class="config-value"><%=getCurrentTimeStr%></span></p>
                                 <p><span class="config-field">数据库：</span><span class="config-value"><%=configMap.get("dbDatabase")!=null?configMap.get("dbDatabase"):""%></span></p>
@@ -678,7 +732,7 @@
                 </div>
             </div>
             <div class="fix-category-handle-bar">
-                <b class="lap-ul" id="lap_ul"><</b>
+                <b class="lap-ul" id="lap_ul" title="点击折起左侧目录"><</b>
             </div>
             <div class="list-content">
                 <h2 style="text-align:center;"><%=title%></h2>
@@ -705,17 +759,17 @@
                                 <li><span>建表语句</span></li>
                             </ul>
                             <dl class="table-other-info">
-                                <dt>创建于：</dt>
+                                <dt>最后更新于：</dt>
                                 <dd><%=table.createTime%></dd>
                                 <%if(table.updateTime != null && !"".equals(table.updateTime)){%>
-                                <dt>更新于：</dt>
+                                <dt>最后更新于：</dt>
                                 <dd><%=table.createTime%></dd>
                                 <%}%>
                             </dl>
-                            <table>
+                            <table class="table-info">
                                 <thead>
                                 <tr>
-                                    <th>序号</th><th>字段名</th><th>数据类型</th><th>注释</th><th>允许空值</th><th>默认值</th><th>自动递增</th><th>主键</th><th>字符集</th><th>排序规则</th>
+                                    <th>序号</th><th>字段名</th><th>字段名驼峰形式</th><th>数据类型</th><th>注释</th><th>允许空值</th><th>默认值</th><th>自动递增</th><th>主键</th><th>字符集</th><th>排序规则</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -725,6 +779,7 @@
                                 <tr>
                                     <td class="column-index"><%=String.format("%0"+ (size+"").length() + "d", k+1)%></td>
                                     <td class="column-field"><%=column.columnName%></td>
+                                    <td class="column-field"><%=column.columnNameCamelStyle%></td>
                                     <td class="column-data-type"><%=column.columnType%></td>
                                     <td class="column-comment"><%=column.columnComment%></td>
                                     <td class="column-can-be-null"><%=column.isNullable%></td>
@@ -737,10 +792,10 @@
                                 <% }%>
                                 </tbody>
                             </table>
-                            <table style="display:none;">
+                            <table class="table-info" style="display:none;">
                                 <thead>
                                 <tr>
-                                    <th>序号</th><th>字段名</th><th>数据类型</th><th>注释</th><th>允许空值</th><th>默认值</th><th>自动递增</th><th>主键</th><th>字符集</th><th>排序规则</th>
+                                    <th>序号</th><th>字段名</th><th>字段名驼峰形式</th><th>数据类型</th><th>注释</th><th>允许空值</th><th>默认值</th><th>自动递增</th><th>主键</th><th>字符集</th><th>排序规则</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -750,6 +805,7 @@
                                 <tr>
                                     <td class="column-index"><%=String.format("%0"+ (size+"").length() + "d", k+1)%></td>
                                     <td class="column-field"><%=column.columnName%></td>
+                                    <td class="column-field"><%=column.columnNameCamelStyle%></td>
                                     <td class="column-data-type"><%=column.columnType%></td>
                                     <td class="column-comment"><%=column.columnComment%></td>
                                     <td class="column-can-be-null"><%=column.isNullable%></td>
@@ -762,7 +818,7 @@
                                 <% }%>
                                 </tbody>
                             </table>
-                            <table style="display:none;">
+                            <table class="table-info" style="display:none;">
                                 <thead>
                                 <tr>
                                     <th>建表语句</th>
@@ -781,7 +837,7 @@
             </div>
             <div class="right-bar-block">
                 <div class="right-bar-nav">
-                    <div class="go-to-top" id="go_to_top">回顶部</div>
+                    <div class="go-to-top" id="go_to_top" title="返回页面顶部">回顶部</div>
                 </div>
             </div>
             <script type="text/javascript">
