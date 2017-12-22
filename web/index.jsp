@@ -444,7 +444,7 @@
         ::-webkit-scrollbar{width:6px;height:5px}
         ::-webkit-scrollbar-thumb{-webkit-border-radius:10px;border-radius:10px;background:rgba(0,0,0,0.39);}
         pre{padding:0;margin:0;}
-        .w-wrap{width:1265px;margin:0 auto;}
+        .w-wrap{width:1240px;margin:0 auto;}
         .fixed{position:fixed;}
         .toolbar-block{width:100%;top:0;right:0;height:38px;background-color:rgba(31,31,31,0.73);-webkit-box-shadow:0 3px 6px rgba(0,0,0,.2);-moz-box-shadow:0 3px 6px rgba(0,0,0,.2);box-shadow:0 3px 6px rgba(0,0,0,.2);z-index:100;}
         .toolbar-block-placeholder{height:40px;width:100%;}
@@ -506,14 +506,14 @@
         .column-index{width:40px;}
         .column-field{width:200px;}
         .column-data-type{width:130px;}
-        .column-comment{width:310px;}
-        .column-can-be-null{width:68px;}
-        .column-auto-increment{width:68px;}
+        .column-comment{width:230px;}
+        .column-can-be-null{width:70px;}
+        .column-auto-increment{width:70px;}
         .column-primary-key{width:40px;}
-        .column-default-value{width:54px;}
-        .column-character-set-name{width:54px;}
-        .column-collation-name{width:100px;}
-        .db-table-create-sql{width:1064px;}
+        .column-default-value{width:60px;}
+        .column-character-set-name{width:60px;}
+        .column-collation-name{width:150px;}
+        .db-table-create-sql{width:1250px;}
         .fix-category{position:fixed;width:300px;height:100%;overflow:auto;top:0;left:0;background:rgba(241,247,253,0.86);box-shadow:3px 0 6px rgba(0,0,0,.2);-webkit-box-shadow:3px 0 6px rgba(0,0,0,.2);-moz-box-shadow:3px 0 6px rgba(0,0,0,.2);z-index:99;}
         .fix-category:hover{z-index:101;}
         .fix-category-hide{left:-300px;overflow:hidden;background-color:rgba(0,23,255,0.22);cursor:pointer;}
@@ -566,7 +566,7 @@
         .data-form-block .tips .tips-p{padding:10px 14px;color:#555;font-size:13px;}
         .data-form-block .tips .tips-p.notice-important{background-color:#ffefef;border:1px solid #ffd2d2}
         /* 右下角 */
-        .right-bar-block{position:fixed;left:50%;bottom:245px;margin-left:632px;}
+        .right-bar-block{position:fixed;left:50%;bottom:245px;margin-left:620px;}
         .right-bar-block .go-to-top{width:20px;border:1px solid #ddd;text-align:center;cursor:pointer;display:none;font-size:13px;padding:6px 0;}
     </style>
 </head>
